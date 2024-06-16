@@ -9,7 +9,7 @@ from torch import nn
 logger = logging.getLogger(__name__)
 
 
-def get_device_type() -> str:
+def get_device() -> str:
     """Extract device type."""
     if torch.cuda.is_available():
         return "cuda"
@@ -27,18 +27,17 @@ DTYPE_MAP: dict[str, torch.dtype] = {
 
 def get_torch_dtype() -> str:
     """Get preferred torch.dtype."""
-    device_type = get_device_type()
-    if device_type in ["cuda", "mps"]:
+
+    if DEFAULT_DEVICE in ["cuda", "mps"]:
         return "bf16"
     return "ft32"
 
 
 def empty_cache() -> None:
     """Empty cache."""
-    device_type = get_device_type()
-    if device_type == "cuda":
+    if DEFAULT_DEVICE == "cuda":
         torch.cuda.empty_cache()
-    elif device_type == "mps":
+    elif DEFAULT_DEVICE == "mps":
         torch.mps.empty_cache()
 
 
@@ -105,3 +104,7 @@ def _check_model_copied(
 
         max_diff = (value_input - value_target).abs().max()
         assert max_diff < 1e-12, f"Found {key} with max_diff={max_diff}!"
+
+
+DEFAULT_DEVICE = get_device()
+DEFAULT_TORCH_DTYPE = get_torch_dtype()

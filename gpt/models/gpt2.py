@@ -14,11 +14,10 @@ from pydantic import BaseModel
 from torch import nn
 
 from gpt.utils import (
+    DEFAULT_DEVICE,
+    DEFAULT_TORCH_DTYPE,
     DTYPE_MAP,
     copy_model_weights,
-    get_device_type,
-    get_hf_model,
-    get_torch_dtype,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,8 +32,8 @@ class GPTConfig(BaseModel):
     n_head: int = 12  # Number of heads
     n_embd: int = 768  # Latent dimension
     mlp_factor: int = 4  # multiplicative factor in MLP latent dim.
-    torch_dtype: str = get_torch_dtype()
-    device_type: str = get_device_type()
+    torch_dtype: str = DEFAULT_TORCH_DTYPE
+    device: str = DEFAULT_DEVICE
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -48,7 +47,7 @@ class GPTConfig(BaseModel):
     def get_model_kwargs(self) -> dict[str, Any]:
         """Returns model training kwargs."""
         return {
-            "device": self.device_type,
+            "device": self.device,
             "dtype": DTYPE_MAP[self.torch_dtype],
         }
 
@@ -70,13 +69,13 @@ class CausalSelfAttention(nn.Module):
         self.c_attn = nn.Linear(
             in_features=self.n_embd,
             out_features=3 * self.n_embd,  # QKV
-            device=self.config.device_type,
+            device=self.config.device,
         )
         # Out-projection
         self.c_proj = nn.Linear(
             in_features=self.n_embd,
             out_features=self.n_embd,
-            device=self.config.device_type,
+            device=self.config.device,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -111,7 +110,7 @@ class MLP(nn.Module):
             in_features=config.n_embd,
             out_features=self.latent_mlp_dim,
             bias=True,
-            device=self.config.device_type,
+            device=self.config.device,
         )
         self.gelu = nn.GELU(
             approximate="tanh",
@@ -120,7 +119,7 @@ class MLP(nn.Module):
             in_features=self.latent_mlp_dim,
             out_features=config.n_embd,
             bias=True,
-            device=self.config.device_type,
+            device=self.config.device,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -137,14 +136,14 @@ class TransformerBlock(nn.Module):
 
         self.ln_1 = nn.LayerNorm(
             normalized_shape=config.n_embd,
-            device=self.config.device_type,
+            device=self.config.device,
         )
         self.attn = CausalSelfAttention(
             config=config,
         )
         self.ln_2 = nn.LayerNorm(
             normalized_shape=config.n_embd,
-            device=self.config.device_type,
+            device=self.config.device,
         )
         self.mlp = MLP(
             config=config,
@@ -254,6 +253,8 @@ class GPT(nn.Module):
         **kwargs,
     ) -> GPT:
         """Naive method to load model from pretrained."""
+        from gpt.hf_utils import get_hf_model
+
         config = GPTConfig(**kwargs)
         model = GPT(config=config)
         model_hf = get_hf_model()

@@ -2,18 +2,18 @@
 
 import logging
 
+import torch
+from gpt.utils import (
+    DEFAULT_DEVICE,
+    DEFAULT_TORCH_DTYPE,
+    DTYPE_MAP,
+)
 from transformers import (
     AutoTokenizer,
     GPT2LMHeadModel,
     PreTrainedModel,
     PreTrainedTokenizer,
 )
-
-from gpt.utils import (
-    DTYPE_MAP,
-    get_device_type,
-)
-
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +29,8 @@ def get_hf_tokenizer(
 
 
 def get_hf_model(
-    device_map: str = get_device_type(),
-    torch_dtype: str = "bf16",
+    device_map: str = DEFAULT_DEVICE,
+    torch_dtype: str = DEFAULT_TORCH_DTYPE,
     **kwargs,
 ) -> PreTrainedModel:
     """Get GPT2-Model."""
@@ -39,4 +39,33 @@ def get_hf_model(
         device_map=device_map,
         torch_dtype=DTYPE_MAP[torch_dtype],
         **kwargs,
+    )
+
+
+def tokenizer_string_dataset(
+    text: str,
+    tokenizer: PreTrainedTokenizer = get_hf_tokenizer(),
+    device: str = DEFAULT_DEVICE,
+) -> torch.Tensor:
+
+    tokens = tokenizer(
+        text,
+        return_tensors="pt",
+    )
+    return tokens["input_ids"].to(device)
+
+
+def tokenize_file_from_disk(
+    file_path: str,
+    tokenizer: PreTrainedTokenizer = get_hf_tokenizer(),
+    device: str = DEFAULT_DEVICE,
+) -> torch.Tensor:
+
+    with open(file_path, "r", encoding="utf-8") as fp:
+        text = fp.read()
+
+    return tokenizer_string_dataset(
+        text=text,
+        tokenizer=tokenizer,
+        device=device,
     )
