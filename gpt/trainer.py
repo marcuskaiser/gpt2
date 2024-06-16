@@ -37,7 +37,9 @@ class SimpleTrainer:
         self.optimizer = AdamW(
             self.model.parameters(),
             lr=self.lr,
+            fused=self.model.config.device == "cuda",
         )
+        self.optimizer.zero_grad()
 
     def train_model(
         self,
@@ -51,6 +53,7 @@ class SimpleTrainer:
             [
                 f"step: %{len(str(num_train_steps))}d",
                 "loss: %.3e",
+                "norm: %.3e",
                 "time_last_step: %.3es",
                 "tokens/s: %.2f",
             ]
@@ -62,7 +65,8 @@ class SimpleTrainer:
             logger.info(
                 train_logging_str,
                 i_step,
-                loss.item(),
+                loss_est,
+                norm,
                 t_diff,
                 total_batch_size / t_diff,
             )
@@ -75,9 +79,8 @@ class SimpleTrainer:
         t_init = t_last = time.time()
         for i_step in range(num_train_steps):
 
-            self.optimizer.zero_grad()
-
             # Gradient accumulation:
+            loss_est = 0
             for _ in range(self.num_accumulation_steps):
                 x, y = self.data_loader.get_next_training_batch()
 
@@ -88,12 +91,19 @@ class SimpleTrainer:
                 # calculate and accumulate loss:
                 _, loss = self.model(x, y)
 
-            # normalize loss to adjust for multiple accumulation steps:
-            loss = loss / self.num_accumulation_steps
+                # normalize loss to adjust for multiple accumulation steps:
+                loss = loss / self.num_accumulation_steps
+                # calculate backward path and update optimizer:
+                loss.backward()
 
-            # calculate backward path and update optimizer:
-            loss.backward()
+                loss_est += loss.item()
+
+            norm = nn.utils.clip_grad_norm(
+                parameters=self.model.parameters(),
+                max_norm=1.0,
+            )
             self.optimizer.step()
+            self.optimizer.zero_grad()
 
             t_last = _update_logging_progress()
 
