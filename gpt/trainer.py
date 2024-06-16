@@ -1,8 +1,11 @@
+import logging
 import time
 
 import torch
 from torch import nn
 from torch.optim import AdamW
+
+logger = logging.getLogger(__name__)
 
 
 class SimpleTrainer:

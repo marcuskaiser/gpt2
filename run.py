@@ -2,7 +2,7 @@
 
 import logging
 
-from llms.gpt2.gpt.gpt2_model import GPT, GPTConfig
+from gpt.models.gpt2 import GPT, GPTConfig
 from gpt.utils import empty_cache, get_device_type, get_hf_tokenizer
 
 DEVICE = get_device_type()

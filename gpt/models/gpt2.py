@@ -5,6 +5,7 @@ Based on Karpathy's https://www.youtube.com/watch?v=l8pRSuU81PU
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import torch
@@ -19,6 +20,8 @@ from gpt.utils import (
     get_hf_model,
     get_torch_dtype,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class GPTConfig(BaseModel):

@@ -1,14 +1,12 @@
 """Utils for GPT Model"""
 
+import logging
+
 import torch
 from torch import nn
 
-from transformers import (
-    AutoTokenizer,
-    GPT2LMHeadModel,
-    PreTrainedModel,
-    PreTrainedTokenizer,
-)
+
+logger = logging.getLogger(__name__)
 
 
 def get_device_type() -> str:
@@ -107,26 +105,3 @@ def _check_model_copied(
 
         max_diff = (value_input - value_target).abs().max()
         assert max_diff < 1e-12, f"Found {key} with max_diff={max_diff}!"
-
-
-def get_hf_tokenizer(
-    model_id: str = "gpt2",
-) -> PreTrainedTokenizer:
-    """Get GPT2-Tokenizer."""
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
-    logging.info("Loaded tokenizer: `%s`", model_id)
-    return tokenizer
-
-
-def get_hf_model(
-    device_map: str = get_device_type(),
-    torch_dtype: str = "bf16",
-    **kwargs,
-) -> PreTrainedModel:
-    """Get GPT2-Model."""
-    return GPT2LMHeadModel.from_pretrained(
-        "gpt2",
-        device_map=device_map,
-        torch_dtype=DTYPE_MAP[torch_dtype],
-        **kwargs,
-    )
