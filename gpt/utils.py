@@ -11,11 +11,15 @@ logger = logging.getLogger(__name__)
 
 def get_device() -> str:
     """Extract device type."""
+    device = "cpu"
+
     if torch.cuda.is_available():
-        return "cuda"
-    if torch.backends.mps.is_available():
-        return "mps"
-    return "cpu"
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+
+    logger.info("Selected default_device=%s", device)
+    return device
 
 
 DTYPE_MAP: dict[str, torch.dtype] = {
@@ -28,16 +32,21 @@ DTYPE_MAP: dict[str, torch.dtype] = {
 def get_torch_dtype() -> str:
     """Get preferred torch.dtype."""
 
+    dtype = "ft32"
     if DEFAULT_DEVICE in ["cuda", "mps"]:
-        return "bf16"
-    return "ft32"
+        dtype = "bf16"
+
+    logger.info("Selected default_type=%s", dtype)
+    return dtype
 
 
 def empty_cache() -> None:
     """Empty cache."""
     if DEFAULT_DEVICE == "cuda":
+        logger.info("Requested cuda.empty_cache")
         torch.cuda.empty_cache()
     elif DEFAULT_DEVICE == "mps":
+        logger.info("Requested mps.empty_cache")
         torch.mps.empty_cache()
 
 
@@ -81,6 +90,7 @@ def copy_model_weights(
         with torch.no_grad():
             target_model_state_dict[key].copy_(val_input)
 
+    logger.info("Model weights copied.")
     return True
 
 
@@ -104,6 +114,8 @@ def _check_model_copied(
 
         max_diff = (value_input - value_target).abs().max()
         assert max_diff < 1e-12, f"Found {key} with max_diff={max_diff}!"
+
+    logger.info("Model weights copy check successful.")
 
 
 DEFAULT_DEVICE = get_device()

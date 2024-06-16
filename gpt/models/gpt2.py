@@ -162,6 +162,7 @@ class GPT(nn.Module):
         super().__init__()
         self.config = config
 
+        # TODO! Weight initialization
         self.transformer = nn.ModuleDict(
             {
                 "wte": nn.Embedding(
