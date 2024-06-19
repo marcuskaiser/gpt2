@@ -112,9 +112,7 @@ class MLP(nn.Module):
             bias=True,
             device=self.config.device,
         )
-        self.gelu = nn.GELU(
-            approximate="tanh",
-        )  # NB: legacy
+        self.gelu = nn.GELU()
         self.c_proj = nn.Linear(
             in_features=self.latent_mlp_dim,
             out_features=config.n_embd,

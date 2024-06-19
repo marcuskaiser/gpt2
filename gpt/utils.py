@@ -32,7 +32,7 @@ DTYPE_MAP: dict[str, torch.dtype] = {
 def get_torch_dtype() -> str:
     """Get preferred torch.dtype."""
 
-    dtype = "ft32"
+    dtype = "fp32"
     if DEFAULT_DEVICE in ["cuda", "mps"]:
         dtype = "bf16"
 

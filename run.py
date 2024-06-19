@@ -44,8 +44,8 @@ if __name__ == "__main__":
     def _eval():
         model.eval()
         output_tokens = model.generate(x_eval, max_new_tokens=30)
-        print(output_tokens)
-        print(tokenizer.decode(output_tokens[0]).replace("\n", "\\n"))
+        print(">>", output_tokens)
+        print(">>", tokenizer.decode(output_tokens[0]).replace("\n", "\\n"))
 
     model_kwargs = {
         "goldfish_p": 0.75,
