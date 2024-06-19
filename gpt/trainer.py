@@ -28,7 +28,7 @@ class SimpleTrainer:
         assert self.lr > 0
 
         self.num_accumulation_steps = num_accumulation_steps
-        assert num_accumulation_steps >= 1
+        assert num_accumulation_steps >= 1, self.num_accumulation_steps
 
         self.optimizer: AdamW
         self._reset_optimizer()
@@ -45,6 +45,7 @@ class SimpleTrainer:
         self,
         num_train_steps: int = 50,
     ) -> SimpleTrainer:
+        """Training routine. Train for num_train_steps steps."""
         self.model.train()
 
         # TODO! Random seed
@@ -98,7 +99,7 @@ class SimpleTrainer:
 
                 loss_est += loss.item()
 
-            norm = nn.utils.clip_grad_norm(
+            norm = nn.utils.clip_grad_norm_(
                 parameters=self.model.parameters(),
                 max_norm=1.0,
             )

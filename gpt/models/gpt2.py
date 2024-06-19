@@ -138,16 +138,12 @@ class TransformerBlock(nn.Module):
             normalized_shape=config.n_embd,
             device=self.config.device,
         )
-        self.attn = CausalSelfAttention(
-            config=config,
-        )
+        self.attn = CausalSelfAttention(config=config)
         self.ln_2 = nn.LayerNorm(
             normalized_shape=config.n_embd,
             device=self.config.device,
         )
-        self.mlp = MLP(
-            config=config,
-        )
+        self.mlp = MLP(config=config)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward"""
@@ -158,7 +154,7 @@ class TransformerBlock(nn.Module):
 class GPT(nn.Module):
     """Main GPT class."""
 
-    def __init__(self, config) -> None:
+    def __init__(self, config: GPTConfig) -> None:
         super().__init__()
         self.config = config
 

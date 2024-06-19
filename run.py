@@ -8,9 +8,12 @@ from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
 from gpt.models.gpt2 import GPT, GPTConfig
 from gpt.data_loader import SimpleDataLoader
 from gpt.trainer import SimpleTrainer
-from gpt.utils import DEFAULT_DEVICE, empty_cache
+from gpt.utils import DEFAULT_DEVICE, empty_cache, set_seed
 
-RANDOM = True
+logger = logging.getLogger(__name__)
+
+
+RANDOM = False
 TRAIN = True
 
 LR = 3e-4
@@ -25,16 +28,18 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     empty_cache()
+    set_seed(0)
 
     # TODO!
     torch.set_float32_matmul_precision("high")
+    torch.set_default_device(DEFAULT_DEVICE)
 
     tokenizer = get_hf_tokenizer()
     tokens = tokenizer(
         "Hi, my name is Bob and",
         return_tensors="pt",
-    ).to(DEFAULT_DEVICE)
-    x_eval = tokens["input_ids"]
+    )
+    x_eval = tokens["input_ids"].to(DEFAULT_DEVICE)
 
     def _eval():
         model.eval()
@@ -42,21 +47,36 @@ if __name__ == "__main__":
         print(output_tokens)
         print(tokenizer.decode(output_tokens[0]).replace("\n", "\\n"))
 
+    model_kwargs = {
+        "goldfish_p": 0.75,
+    }
+
     if RANDOM:
-        config = GPTConfig()
+        config = GPTConfig(**model_kwargs)
         model = GPT(config=config)
     else:
-        model = GPT.from_pretrained()
+        model = GPT.from_pretrained(**model_kwargs)
+
+    print({p.device for p in model.parameters()})
+    print(model)
 
     # TODO!
-    # model = torch.compile(model)
+    # try:
+    #     import torch._dynamo
+
+    #     torch._dynamo.config.suppress_errors = True
+    #     model = torch.compile(model)
+    #     logger.info("model.compile successful!")
+
+    # except AssertionError as exc:
+    #     logger.info("model.compile failed: %s", exc)
 
     print(model.config)
 
     _eval()
 
     if TRAIN:
-        tokens = tokenize_file_from_disk("data/input.txt")
+        tokens = tokenize_file_from_disk("data/input.txt").to(DEFAULT_DEVICE)
 
         model = model.train()
 
