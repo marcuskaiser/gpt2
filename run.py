@@ -1,6 +1,7 @@
 """Test run loading the model"""
 
 import logging
+import sys
 
 import torch
 
@@ -26,6 +27,14 @@ SEQ_LENGTH = 1024
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
+    logging.basicConfig(
+        stream=sys.stderr,
+        level=logging.INFO,
+        # format="%(filename)s:%(lineno)s %(levelname)s:%(message)s",
+    )
 
     empty_cache()
     set_seed(0)

@@ -55,7 +55,7 @@ def set_seed(seed: int):
 
     torch.manual_seed(seed)
     for i, default_generator in enumerate(torch.cuda.default_generators):
-        default_generator.set_manual_seed(seed + i)
+        default_generator.manual_seed(seed + i)
 
 
 def copy_model_weights(
