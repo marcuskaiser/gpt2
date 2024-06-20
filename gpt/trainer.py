@@ -3,6 +3,7 @@ import logging
 import time
 
 import torch
+from pydantic import BaseModel
 from torch import nn
 from torch.optim import AdamW
 
@@ -12,25 +13,34 @@ from gpt.utils import DTYPE_MAP
 logger = logging.getLogger(__name__)
 
 
+class TrainingConfig(BaseModel):
+    lr: float = 3e-4
+    num_accumulation_steps: int = 1
+
+
 class SimpleTrainer:
     def __init__(
         self,
+        config: TrainingConfig,
         model: nn.Module,
         data_loader: SimpleDataLoader,
-        lr: float = 3e-4,
-        num_accumulation_steps: int = 1,
     ) -> None:
+        """Basic implementation of a trainer class."""
+
+        self.config = config
+        assert isinstance(self.config, TrainingConfig)
+
         self.model = model
         assert isinstance(self.model, nn.Module)
 
         self.data_loader = data_loader
         assert isinstance(self.data_loader, SimpleDataLoader)
 
-        self.lr = lr
+        self.lr = config.lr
         assert self.lr > 0
 
-        self.num_accumulation_steps = num_accumulation_steps
-        assert num_accumulation_steps >= 1, self.num_accumulation_steps
+        self.num_accumulation_steps = config.num_accumulation_steps
+        assert self.num_accumulation_steps >= 1, self.num_accumulation_steps
 
         self.optimizer: AdamW
         self._reset_optimizer()
@@ -99,7 +109,7 @@ class SimpleTrainer:
 
                 # normalize loss to adjust for multiple accumulation steps:
                 loss = loss / self.num_accumulation_steps
-                # calculate backward path and update optimizer:
+                # calculate backward path and accumulate grads in leaves:
                 loss.backward()
 
                 loss_est += loss.item()
@@ -108,6 +118,7 @@ class SimpleTrainer:
                 parameters=self.model.parameters(),
                 max_norm=1.0,
             )
+            # Step with the optimizer and reset accumulated gradients:
             self.optimizer.step()
             self.optimizer.zero_grad()
 

@@ -8,7 +8,7 @@ import torch
 from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
 from gpt.models.gpt2 import GPT, GPTConfig
 from gpt.data_loader import SimpleDataLoader
-from gpt.trainer import SimpleTrainer
+from gpt.trainer import SimpleTrainer, TrainingConfig
 from gpt.utils import DEFAULT_DEVICE, empty_cache, set_seed
 
 logger = logging.getLogger(__name__)
@@ -93,11 +93,15 @@ if __name__ == "__main__":
             seq_len=SEQ_LENGTH,
         )
 
-        trainer = SimpleTrainer(
-            model=model,
-            data_loader=data_loader,
+        trainer_config = TrainingConfig(
             lr=LR,
             num_accumulation_steps=NUM_ACCUMULATION_STEPS,
+        )
+
+        trainer = SimpleTrainer(
+            config=trainer_config,
+            model=model,
+            data_loader=data_loader,
         ).train_model(
             num_train_steps=NUM_TRAIN_STEPS,
         )
