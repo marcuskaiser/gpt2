@@ -4,5 +4,6 @@ torch
 numpy
 
 accelerate
+bitsandbytes
 datasets
 transformers

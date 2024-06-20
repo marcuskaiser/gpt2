@@ -127,6 +127,7 @@ class SimpleTrainer:
         self.model.train()
 
         # TODO! Random seed
+        # TODO! Learning rate scheduler
 
         train_logging_str = ", ".join(
             [

@@ -19,10 +19,17 @@ TRAIN = True
 COMPILE_MODEL = False
 
 LR = 3e-4
-NUM_TRAIN_STEPS = 5
-NUM_ACCUMULATION_STEPS = 2
-BATCH_SIZE = 1
 SEQ_LENGTH = 1024
+NUM_TRAIN_STEPS = 50
+
+if DEFAULT_DEVICE == "cuda":
+    NUM_ACCUMULATION_STEPS = 16
+    BATCH_SIZE = 12
+    OPTIMIZER = "adamw"
+else:
+    NUM_ACCUMULATION_STEPS = 2
+    BATCH_SIZE = 1
+    OPTIMIZER = "adamw8bit"
 
 
 if __name__ == "__main__":
@@ -35,6 +42,11 @@ if __name__ == "__main__":
         stream=sys.stderr,
         level=logging.INFO,
         # format="%(filename)s:%(lineno)s %(levelname)s:%(message)s",
+    )
+
+    logger.info(
+        "effective_batch_size=%d",
+        SEQ_LENGTH * NUM_ACCUMULATION_STEPS * BATCH_SIZE,
     )
 
     empty_cache()
@@ -61,6 +73,10 @@ if __name__ == "__main__":
         )
 
     model_kwargs = {}
+    if DEFAULT_DEVICE == "cuda":
+        model_kwargs = {
+            "autocast_dtype": "fp16",
+        }
 
     if RANDOM:
         config = GPTConfig(**model_kwargs)
@@ -96,7 +112,8 @@ if __name__ == "__main__":
         trainer_config = TrainingConfig(
             lr=LR,
             num_accumulation_steps=NUM_ACCUMULATION_STEPS,
-            use_scaler=False,
+            use_scaler=model.config.autocast_dtype == "fp16",
+            optmizer=OPTIMIZER,
         )
 
         trainer = SimpleTrainer(
