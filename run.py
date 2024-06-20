@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     tokenizer = get_hf_tokenizer()
     tokens = tokenizer(
-        "Hi, my name is Bob and",
+        "Hi, my",
         return_tensors="pt",
     )
     x_eval = tokens["input_ids"].to(DEFAULT_DEVICE)
@@ -72,11 +72,12 @@ if __name__ == "__main__":
     print({p.device for p in model.parameters()})
     logger.info("%s", model)
 
-    # try:
-    #     model = torch.compile(model)
-    #     logger.info("model.compile successful!")
-    # except AssertionError as exc:
-    #     logger.info("model.compile failed: %s", exc)
+    if COMPILE_MODEL:
+        try:
+            model = torch.compile(model)
+            logger.info("model.compile successful!")
+        except AssertionError as exc:
+            logger.info("model.compile failed: %s", exc)
 
     logger.info("%s", model.config)
 
