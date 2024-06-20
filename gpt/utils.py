@@ -4,13 +4,15 @@ import logging
 from typing import Literal, cast
 
 import torch
+from bitsandbytes.optim import AdamW8bit
 from torch import nn
-
+from torch.optim import AdamW
 
 logger = logging.getLogger(__name__)
 
 T_DEVICE = Literal["cpu", "cuda", "mps"]
 T_DTYPE = Literal["fp32", "fp16", "bf16"]
+T_OPTIMIZER = Literal["adamw", "adamw8bit"]
 
 
 def get_device() -> T_DEVICE:
@@ -30,6 +32,18 @@ DTYPE_MAP: dict[T_DTYPE, torch.dtype] = {
     "fp16": torch.float16,
     "bf16": torch.bfloat16,
 }
+
+
+def get_adamw(
+    optimizer: T_OPTIMIZER = "adamw",
+    **kwargs,
+) -> torch.optim.Optimizer:
+    """Get the optimizer."""
+
+    if optimizer == "adamw":
+        return AdamW(**kwargs)
+    else:
+        return AdamW8bit(**kwargs)
 
 
 def empty_cache() -> None:

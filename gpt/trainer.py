@@ -1,19 +1,18 @@
 """Trainer class."""
 
 from __future__ import annotations
+
 import logging
 import time
 
 import torch
 from pydantic import BaseModel
 from torch import nn
-from torch.optim import AdamW
 from torch.cuda.amp import GradScaler
-
-# from bitsandbytes.optim import AdamW8bit
+from torch.optim import AdamW
 
 from gpt.data_loader import SimpleDataLoader
-from gpt.utils import DTYPE_MAP
+from gpt.utils import DTYPE_MAP, get_adamw, T_OPTIMIZER
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +21,7 @@ class TrainingConfig(BaseModel):
     lr: float = 3e-4
     num_accumulation_steps: int = 1
     use_scaler: bool = True
+    optimizer: T_OPTIMIZER = "adamw"
 
 
 class NoScaler:
@@ -87,12 +87,13 @@ class SimpleTrainer:
                 self.model.config.autocast_dtype != "fp16"
             ), "Cannot use autocast_dtype=`fp16` with use_scaler=`False`!"
 
-        self.optimizer: AdamW
+        self.optimizer: AdamW | "AdamW8bit"
         self._reset_optimizer()
 
     def _reset_optimizer(self) -> None:
-        self.optimizer = AdamW(
-            self.model.parameters(),
+        self.optimizer = get_adamw(
+            optimizer=self.config.optimizer,
+            params=self.model.parameters(),
             lr=self.lr,
         )
         # NB: set fused post instantiation, since not all
