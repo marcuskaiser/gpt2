@@ -7,6 +7,7 @@ from torch import nn
 from torch.optim import AdamW
 
 from gpt.data_loader import SimpleDataLoader
+from gpt.utils import DTYPE_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ class SimpleTrainer:
                 else:
                     with torch.autocast(
                         device_type=self.model.config.device,
-                        dtype=self.model.config.torch_dtype,
+                        dtype=DTYPE_MAP[self.model.config.torch_dtype],
                     ):
                         _, loss = self.model(x, y)
 
