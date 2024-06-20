@@ -53,8 +53,11 @@ if __name__ == "__main__":
     def _eval():
         model.eval()
         output_tokens = model.generate(x_eval, max_new_tokens=30)
-        print(">>", output_tokens)
-        print(">>", tokenizer.decode(output_tokens[0]).replace("\n", "\\n"))
+        logger.info(">> %s", output_tokens)
+        logger.info(
+            ">> %s",
+            tokenizer.decode(output_tokens[0]).replace("\n", "\\n"),
+        )
 
     model_kwargs = {
         "goldfish_p": 0.75,
@@ -67,20 +70,15 @@ if __name__ == "__main__":
         model = GPT.from_pretrained(**model_kwargs)
 
     print({p.device for p in model.parameters()})
-    print(model)
+    logger.info("%s", model)
 
-    # TODO!
     # try:
-    #     import torch._dynamo
-
-    #     torch._dynamo.config.suppress_errors = True
     #     model = torch.compile(model)
     #     logger.info("model.compile successful!")
-
     # except AssertionError as exc:
     #     logger.info("model.compile failed: %s", exc)
 
-    print(model.config)
+    logger.info("%s", model.config)
 
     _eval()
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 import logging
 import time
 
+import torch
 from torch import nn
 from torch.optim import AdamW
 
@@ -85,12 +86,15 @@ class SimpleTrainer:
             for _ in range(self.num_accumulation_steps):
                 x, y = self.data_loader.get_next_training_batch()
 
-                # with torch.autocast(
-                #     device_type=self.model.config.device,
-                #     dtype=self.model.config.torch_dtype,
-                # ):
                 # calculate and accumulate loss:
-                _, loss = self.model(x, y)
+                if self.model.config.device == "mps":
+                    _, loss = self.model(x, y)
+                else:
+                    with torch.autocast(
+                        device_type=self.model.config.device,
+                        dtype=self.model.config.torch_dtype,
+                    ):
+                        _, loss = self.model(x, y)
 
                 # normalize loss to adjust for multiple accumulation steps:
                 loss = loss / self.num_accumulation_steps
