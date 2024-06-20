@@ -60,9 +60,7 @@ if __name__ == "__main__":
             tokenizer.decode(output_tokens[0]).replace("\n", "\\n"),
         )
 
-    model_kwargs = {
-        "goldfish_p": 0.75,
-    }
+    model_kwargs = {}
 
     if RANDOM:
         config = GPTConfig(**model_kwargs)
@@ -70,8 +68,8 @@ if __name__ == "__main__":
     else:
         model = GPT.from_pretrained(**model_kwargs)
 
-    print({p.device for p in model.parameters()})
-    logger.info("%s", model)
+    logger.info({p.device for p in model.parameters()})
+    logger.info(model)
 
     if COMPILE_MODEL:
         try:
