@@ -15,9 +15,9 @@ from torch import nn
 
 from gpt.utils import (
     DEFAULT_DEVICE,
-    DEFAULT_TORCH_DTYPE,
-    DTYPE_MAP,
     copy_model_weights,
+    T_DTYPE,
+    T_DEVICE,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,8 +32,8 @@ class GPTConfig(BaseModel):
     n_head: int = 12  # Number of heads
     n_embd: int = 768  # Latent dimension
     mlp_factor: int = 4  # multiplicative factor in MLP latent dim.
-    torch_dtype: str = DEFAULT_TORCH_DTYPE
-    device: str = DEFAULT_DEVICE
+    autocast_dtype: T_DTYPE = "bf16"
+    device: T_DEVICE = DEFAULT_DEVICE
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -46,9 +46,13 @@ class GPTConfig(BaseModel):
 
     def get_model_kwargs(self) -> dict[str, Any]:
         """Returns model training kwargs."""
+        if self.device == "mps":
+            return {
+                "device": self.device,
+                "dtype": torch.bfloat16,
+            }
         return {
             "device": self.device,
-            "dtype": DTYPE_MAP[self.torch_dtype],
         }
 
 

@@ -16,10 +16,11 @@ logger = logging.getLogger(__name__)
 
 RANDOM = False
 TRAIN = True
+COMPILE_MODEL = False
 
 LR = 3e-4
 NUM_TRAIN_STEPS = 10
-NUM_ACCUMULATION_STEPS = 16
+NUM_ACCUMULATION_STEPS = 4
 BATCH_SIZE = 1
 SEQ_LENGTH = 1024
 
@@ -97,6 +98,7 @@ if __name__ == "__main__":
         trainer_config = TrainingConfig(
             lr=LR,
             num_accumulation_steps=NUM_ACCUMULATION_STEPS,
+            use_scaler=False,
         )
 
         trainer = SimpleTrainer(

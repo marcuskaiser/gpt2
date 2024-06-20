@@ -1,6 +1,7 @@
 """Utils for GPT Model"""
 
 import logging
+from typing import Literal, cast
 
 import torch
 from torch import nn
@@ -8,36 +9,27 @@ from torch import nn
 
 logger = logging.getLogger(__name__)
 
+T_DEVICE = Literal["cpu", "cuda", "mps"]
+T_DTYPE = Literal["fp32", "fp16", "bf16"]
 
-def get_device() -> str:
+
+def get_device() -> T_DEVICE:
     """Extract device type."""
     device = "cpu"
-
     if torch.cuda.is_available():
         device = "cuda"
     elif torch.backends.mps.is_available():
         device = "mps"
 
     logger.info("Selected default_device=%s", device)
-    return device
+    return cast(T_DEVICE, device)
 
 
-DTYPE_MAP: dict[str, torch.dtype] = {
+DTYPE_MAP: dict[T_DTYPE, torch.dtype] = {
+    "fp32": torch.float32,
     "fp16": torch.float16,
     "bf16": torch.bfloat16,
-    "fp32": torch.float32,
 }
-
-
-def get_torch_dtype() -> str:
-    """Get preferred torch.dtype."""
-
-    dtype = "fp32"
-    if DEFAULT_DEVICE in ["cuda", "mps"]:
-        dtype = "bf16"
-
-    logger.info("Selected default_type=%s", dtype)
-    return dtype
 
 
 def empty_cache() -> None:
@@ -127,4 +119,3 @@ def _check_model_copied(
 
 
 DEFAULT_DEVICE = get_device()
-DEFAULT_TORCH_DTYPE = get_torch_dtype()

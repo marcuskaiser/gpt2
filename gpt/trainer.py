@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 class TrainingConfig(BaseModel):
     lr: float = 3e-4
     num_accumulation_steps: int = 1
+    use_scaler: bool = True
 
 
 class NoScaler:
@@ -75,6 +76,16 @@ class SimpleTrainer:
 
         self.num_accumulation_steps = config.num_accumulation_steps
         assert self.num_accumulation_steps >= 1, self.num_accumulation_steps
+
+        if self.config.use_scaler:
+            assert self.model.config.device == "cuda", (
+                "use_scaler only works with device=`cuda`. "
+                f"Got: {self.model.config.device}"
+            )
+        else:
+            assert (
+                self.model.config.autocast_dtype != "fp16"
+            ), "Cannot use autocast_dtype=`fp16` with use_scaler=`False`!"
 
         self.optimizer: AdamW
         self._reset_optimizer()
@@ -144,7 +155,7 @@ class SimpleTrainer:
         )
 
         scaler = NoScaler()
-        if self.model.config.device == "cuda":
+        if self.config.use_scaler and self.model.config.device == "cuda":
             scaler = GradScaler()
 
         t_init = t_last = time.time()

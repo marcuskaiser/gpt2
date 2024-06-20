@@ -3,11 +3,7 @@
 import logging
 
 import torch
-from gpt.utils import (
-    DEFAULT_DEVICE,
-    DEFAULT_TORCH_DTYPE,
-    DTYPE_MAP,
-)
+from gpt.utils import DEFAULT_DEVICE
 from transformers import (
     AutoTokenizer,
     GPT2LMHeadModel,
@@ -33,14 +29,12 @@ def get_hf_tokenizer(
 def get_hf_model(
     model_id: str = "gpt2",
     device_map: str = DEFAULT_DEVICE,
-    torch_dtype: str = DEFAULT_TORCH_DTYPE,
     **kwargs,
 ) -> PreTrainedModel:
     """Get GPT2-Model."""
     model = GPT2LMHeadModel.from_pretrained(
         pretrained_model_name_or_path=model_id,
         device_map=device_map,
-        torch_dtype=DTYPE_MAP[torch_dtype],
         **kwargs,
     )
 
