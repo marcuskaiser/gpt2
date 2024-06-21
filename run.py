@@ -3,11 +3,10 @@
 import logging
 import os
 import sys
-from typing import cast
 
 import torch
 from torch.distributed import init_process_group
-from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.nn.parallel import DistributedDataParallel
 
 from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
 from gpt.models.gpt2 import GPT, GPTConfig
@@ -105,7 +104,7 @@ if __name__ == "__main__":
 
     if IS_DDP_RUN:
         config = model.config
-        model = DDP(model, device_ids=[DEVICE_RANK])
+        model = DistributedDataParallel(model, device_ids=[DEVICE_RANK])
         model.config = config
 
         print(list(vars(model)))

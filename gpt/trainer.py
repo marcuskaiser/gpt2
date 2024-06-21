@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-
+from torch.nn.parallel import DistributedDataParallel
 import torch
 from pydantic import BaseModel
 from torch import nn
@@ -66,6 +66,7 @@ class SimpleTrainer:
 
         self.model = model
         assert isinstance(self.model, nn.Module)
+        self._ddp = isinstance(model, DistributedDataParallel)
 
         self.data_loader = data_loader
         assert isinstance(self.data_loader, SimpleDataLoader)
@@ -170,6 +171,11 @@ class SimpleTrainer:
             loss_est = 0.0
             for _ in range(self.num_accumulation_steps):
                 x, y = self.data_loader.get_next_training_batch()
+
+                if self._ddp:
+                    self.model.require_background_grad_sync = (
+                        i_step + 1 == num_train_steps
+                    )
 
                 # calculate and accumulate loss on the batch (x, y):
                 loss = self._model_forward_loss(x=x, y=y)
