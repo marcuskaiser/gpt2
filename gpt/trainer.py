@@ -9,10 +9,9 @@ import torch
 from pydantic import BaseModel
 from torch import nn
 from torch.cuda.amp import GradScaler
-from torch.optim import AdamW
 
 from gpt.data_loader import SimpleDataLoader
-from gpt.utils import DTYPE_MAP, get_adamw, T_OPTIMIZER
+from gpt.utils import DTYPE_MAP, get_optimizer, T_OPTIMIZER
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,7 @@ class NoScaler:
 
     def unscale_(
         self,
-        optimizer: AdamW,
+        optimizer: torch.optim.Optimizer,
     ) -> None:
         """Dummy unscale_ function."""
 
@@ -47,7 +46,7 @@ class NoScaler:
 
     def step(
         self,
-        optimizer: AdamW,
+        optimizer: torch.optim.Optimizer,
     ) -> None:
         """Dummy step function. Simply calls `optimizer.step()`."""
         optimizer.step()
@@ -77,8 +76,11 @@ class SimpleTrainer:
         self.num_accumulation_steps = config.num_accumulation_steps
         assert self.num_accumulation_steps >= 1, self.num_accumulation_steps
 
+        self._is_mps = self.model.config.device == "mps"
+        self._is_cuda = self.model.config.device == "cuda"
+
         if self.config.use_scaler:
-            assert self.model.config.device == "cuda", (
+            assert self._is_cuda, (
                 "use_scaler only works with device=`cuda`. "
                 f"Got: {self.model.config.device}"
             )
@@ -87,18 +89,17 @@ class SimpleTrainer:
                 self.model.config.autocast_dtype != "fp16"
             ), "Cannot use autocast_dtype=`fp16` with use_scaler=`False`!"
 
-        self.optimizer: AdamW | "AdamW8bit"
+        self.optimizer: torch.optim.Optimizer
         self._reset_optimizer()
 
     def _reset_optimizer(self) -> None:
-        self.optimizer = get_adamw(
+        self.optimizer = get_optimizer(
             optimizer=self.config.optimizer,
             params=self.model.parameters(),
             lr=self.lr,
         )
-        # NB: set fused post instantiation, since not all
-        #  implementations use this param.
-        if self.model.config.device == "cuda":
+        # NB: Not all optimizer versions have the `fused` param:
+        if self._is_cuda and hasattr(self.optimizer, "fused"):
             self.optimizer.fused = True
 
         self.optimizer.zero_grad()
@@ -108,7 +109,7 @@ class SimpleTrainer:
         x: torch.Tensor,
         y: torch.Tensor,
     ) -> torch.Tensor:
-        if self.model.config.device == "mps":
+        if self._is_mps:
             _, loss = self.model(x, y)
         else:
             with torch.autocast(
@@ -128,6 +129,7 @@ class SimpleTrainer:
 
         # TODO! Random seed
         # TODO! Learning rate scheduler
+        # TODO! Weight decay
 
         train_logging_str = ", ".join(
             [
@@ -195,6 +197,9 @@ class SimpleTrainer:
 
             # reset accumulated gradients:
             self.optimizer.zero_grad()
+
+            if self._is_cuda:
+                torch.cuda.synchronize()
 
             t_last = _update_logging_progress()
 

@@ -34,7 +34,7 @@ DTYPE_MAP: dict[T_DTYPE, torch.dtype] = {
 }
 
 
-def get_adamw(
+def get_optimizer(
     optimizer: T_OPTIMIZER = "adamw",
     **kwargs,
 ) -> torch.optim.Optimizer:
