@@ -118,7 +118,8 @@ if __name__ == "__main__":
 
     logger.info("%s", model.config)
 
-    _eval()
+    if not IS_DDP_RUN:
+        _eval()
 
     if TRAIN:
         tokens = tokenize_file_from_disk("data/input.txt").to(
@@ -150,4 +151,5 @@ if __name__ == "__main__":
             num_train_steps=NUM_TRAIN_STEPS,
         )
 
-        _eval()
+        if not IS_DDP_RUN:
+            _eval()
