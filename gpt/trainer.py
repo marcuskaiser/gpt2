@@ -11,7 +11,7 @@ from torch import nn
 from torch.cuda.amp import GradScaler
 
 from gpt.data_loader import SimpleDataLoader
-from gpt.utils import DTYPE_MAP, get_optimizer, T_OPTIMIZER
+from gpt.utils import DTYPE_MAP, get_optimizer, TYPE_OPTIMIZER
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class TrainingConfig(BaseModel):
     lr: float = 3e-4
     num_accumulation_steps: int = 1
     use_scaler: bool = True
-    optimizer: T_OPTIMIZER = "adamw"
+    optimizer: TYPE_OPTIMIZER = "adamw"
 
 
 class NoScaler:

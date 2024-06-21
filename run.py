@@ -1,15 +1,18 @@
 """Test run loading the model"""
 
 import logging
+import os
 import sys
 
 import torch
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
 from gpt.models.gpt2 import GPT, GPTConfig
 from gpt.data_loader import SimpleDataLoader
 from gpt.trainer import SimpleTrainer, TrainingConfig
 from gpt.utils import DEFAULT_DEVICE_TYPE, empty_cache, set_seed
+
 
 logger = logging.getLogger(__name__)
 
@@ -21,14 +24,19 @@ COMPILE_MODEL = False
 LR = 6e-4
 SEQ_LENGTH = 1024
 
+print(os.environ)
+
+DEVICE_RANK = os.environ.get("RANK", 0)
+WORLD_SIZE = 1
+
 if DEFAULT_DEVICE_TYPE == "cuda":
-    NUM_TRAIN_STEPS = 100
+    NUM_TRAIN_STEPS = 10
     NUM_ACCUMULATION_STEPS = 16
     BATCH_SIZE = 12
     OPTIMIZER = "adamw"
 else:
-    NUM_TRAIN_STEPS = 10
-    NUM_ACCUMULATION_STEPS = 8
+    NUM_TRAIN_STEPS = 5
+    NUM_ACCUMULATION_STEPS = 4
     BATCH_SIZE = 1
     OPTIMIZER = "adamw8bit"
 
@@ -76,7 +84,7 @@ if __name__ == "__main__":
     model_kwargs = {}
     if DEFAULT_DEVICE_TYPE == "cuda":
         model_kwargs = {
-            "autocast_dtype": "fp16",
+            "autocasTYPE_DTYPE": "fp16",
         }
 
     if RANDOM:
@@ -87,6 +95,8 @@ if __name__ == "__main__":
 
     logger.info({p.device for p in model.parameters()})
     logger.info(model)
+
+    # model = DDP(model, device_ids=[0])
 
     if COMPILE_MODEL:
         try:
@@ -110,12 +120,14 @@ if __name__ == "__main__":
             data=tokens,
             batch_size=BATCH_SIZE,
             seq_len=SEQ_LENGTH,
+            world_size=WORLD_SIZE,
+            device_rank=DEVICE_RANK,
         )
 
         trainer_config = TrainingConfig(
             lr=LR,
             num_accumulation_steps=NUM_ACCUMULATION_STEPS,
-            use_scaler=model.config.autocast_dtype == "fp16",
+            use_scaler=model.config.autocasTYPE_DTYPE == "fp16",
             optmizer=OPTIMIZER,
         )
 

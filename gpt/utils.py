@@ -10,12 +10,12 @@ from torch.optim import AdamW
 
 logger = logging.getLogger(__name__)
 
-T_DEVICE_TYPE = Literal["cpu", "cuda", "mps"]
-T_DTYPE = Literal["fp32", "fp16", "bf16"]
-T_OPTIMIZER = Literal["adamw", "adamw8bit"]
+TYPE_DEVICE_TYPE = Literal["cpu", "cuda", "mps"]
+TYPE_DTYPE = Literal["fp32", "fp16", "bf16"]
+TYPE_OPTIMIZER = Literal["adamw", "adamw8bit"]
 
 
-def get_device_type() -> T_DEVICE_TYPE:
+def get_device_type() -> TYPE_DEVICE_TYPE:
     """Extract device type."""
     device = "cpu"
     if torch.cuda.is_available():
@@ -23,11 +23,11 @@ def get_device_type() -> T_DEVICE_TYPE:
     elif torch.backends.mps.is_available():
         device = "mps"
 
-    logger.info("Selected DEFAULT_DEVICE_TYPE=%s", device)
-    return cast(T_DEVICE_TYPE, device)
+    logger.info("Selected TYPE_DEVICE_TYPE=%s", device)
+    return cast(TYPE_DEVICE_TYPE, device)
 
 
-DTYPE_MAP: dict[T_DTYPE, torch.dtype] = {
+DTYPE_MAP: dict[TYPE_DTYPE, torch.dtype] = {
     "fp32": torch.float32,
     "fp16": torch.float16,
     "bf16": torch.bfloat16,
@@ -35,7 +35,7 @@ DTYPE_MAP: dict[T_DTYPE, torch.dtype] = {
 
 
 def get_optimizer(
-    optimizer: T_OPTIMIZER = "adamw",
+    optimizer: TYPE_OPTIMIZER = "adamw",
     **kwargs,
 ) -> torch.optim.Optimizer:
     """Get the optimizer."""

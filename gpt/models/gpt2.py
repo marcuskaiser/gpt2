@@ -16,8 +16,8 @@ from torch import nn
 from gpt.utils import (
     DEFAULT_DEVICE_TYPE,
     copy_model_weights,
-    T_DTYPE,
-    T_DEVICE_TYPE,
+    TYPE_DTYPE,
+    TYPE_DEVICE_TYPE,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,8 +32,8 @@ class GPTConfig(BaseModel):
     n_head: int = 12  # Number of heads
     n_embd: int = 768  # Latent dimension
     mlp_factor: int = 4  # multiplicative factor in MLP latent dim.
-    autocast_dtype: T_DTYPE = "bf16"
-    device: T_DEVICE_TYPE = DEFAULT_DEVICE_TYPE
+    autocast_dtype: TYPE_DTYPE = "bf16"
+    device: TYPE_DEVICE_TYPE = DEFAULT_DEVICE_TYPE
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
