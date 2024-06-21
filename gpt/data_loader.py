@@ -5,6 +5,7 @@ import torch
 logger = logging.getLogger(__name__)
 
 
+# TODO! Add train/test data splitting.
 class SimpleDataLoader:
     def __init__(
         self,
@@ -75,9 +76,7 @@ class SimpleDataLoader:
         x, y = self._extract_one_training_batch(offset=self._offset)
 
         self._offset += self.eff_batch_size
-        if (
-            self._offset + self.eff_batch_size + 1 >= self._data_len
-        ):  # TODO! Check logic ^
+        if self._offset + self.eff_batch_size >= self._data_len:
             logger.debug(
                 "End of epoch %3d: Resetting offset.",
                 self._dataset_cycles,
