@@ -33,6 +33,7 @@ WORLD_SIZE = int(os.environ.get("WORLD_SIZE", 1))
 
 if IS_DDP_RUN:
     assert torch.cuda.is_available()
+    torch.cuda.set_device(f"cuda:{DEVICE_RANK}")
     init_process_group(backend="nccl")
 
 if DEFAULT_DEVICE_TYPE == "cuda":
