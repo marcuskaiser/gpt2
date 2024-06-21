@@ -6,6 +6,7 @@ import sys
 from typing import cast
 
 import torch
+from torch.distributed import init_process_group
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
@@ -25,11 +26,14 @@ COMPILE_MODEL = False
 LR = 6e-4
 SEQ_LENGTH = 1024
 
-print(os.environ)
 
 IS_DDP_RUN = "RANK" in os.environ
 DEVICE_RANK = int(os.environ.get("RANK", 0))
 WORLD_SIZE = int(os.environ.get("WORLD_SIZE", 1))
+
+if IS_DDP_RUN:
+    assert torch.cuda.is_available()
+    init_process_group(backend="nccl")
 
 if DEFAULT_DEVICE_TYPE == "cuda":
     NUM_TRAIN_STEPS = 10
