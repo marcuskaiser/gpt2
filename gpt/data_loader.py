@@ -5,7 +5,6 @@ import torch
 logger = logging.getLogger(__name__)
 
 
-# TODO! Allow to wrap when end of dataset is reached.
 class SimpleDataLoader:
     def __init__(
         self,
@@ -25,6 +24,7 @@ class SimpleDataLoader:
         self.seq_len = seq_len
         assert self.seq_len > 0
 
+        # TODO! Add offset for multiple cuda devices!
         self.eff_batch_size = self.batch_size * self.seq_len
 
         self._offset = 0
@@ -77,7 +77,11 @@ class SimpleDataLoader:
         self._offset += self.eff_batch_size
         if (
             self._offset + self.eff_batch_size + 1 >= self._data_len
-        ):  # TODO! Check logic
+        ):  # TODO! Check logic ^
+            logger.debug(
+                "End of epoch %3d: Resetting offset.",
+                self._dataset_cycles,
+            )
             self._offset = 0
             self._dataset_cycles += 1
 

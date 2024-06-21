@@ -10,12 +10,12 @@ from torch.optim import AdamW
 
 logger = logging.getLogger(__name__)
 
-T_DEVICE = Literal["cpu", "cuda", "mps"]
+T_DEVICE_TYPE = Literal["cpu", "cuda", "mps"]
 T_DTYPE = Literal["fp32", "fp16", "bf16"]
 T_OPTIMIZER = Literal["adamw", "adamw8bit"]
 
 
-def get_device() -> T_DEVICE:
+def get_device_type() -> T_DEVICE_TYPE:
     """Extract device type."""
     device = "cpu"
     if torch.cuda.is_available():
@@ -23,8 +23,8 @@ def get_device() -> T_DEVICE:
     elif torch.backends.mps.is_available():
         device = "mps"
 
-    logger.info("Selected default_device=%s", device)
-    return cast(T_DEVICE, device)
+    logger.info("Selected DEFAULT_DEVICE_TYPE=%s", device)
+    return cast(T_DEVICE_TYPE, device)
 
 
 DTYPE_MAP: dict[T_DTYPE, torch.dtype] = {
@@ -48,10 +48,10 @@ def get_optimizer(
 
 def empty_cache() -> None:
     """Empty cache."""
-    if DEFAULT_DEVICE == "cuda":
+    if DEFAULT_DEVICE_TYPE == "cuda":
         logger.info("Requested cuda.empty_cache")
         torch.cuda.empty_cache()
-    elif DEFAULT_DEVICE == "mps":
+    elif DEFAULT_DEVICE_TYPE == "mps":
         logger.info("Requested mps.empty_cache")
         torch.mps.empty_cache()
 
@@ -132,4 +132,4 @@ def _check_model_copied(
     logger.info("Model weights copy check successful.")
 
 
-DEFAULT_DEVICE = get_device()
+DEFAULT_DEVICE_TYPE = get_device_type()

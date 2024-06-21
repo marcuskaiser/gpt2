@@ -104,7 +104,7 @@ class SimpleTrainer:
 
         self.optimizer.zero_grad()
 
-    def _model_forward(
+    def _model_forward_loss(
         self,
         x: torch.Tensor,
         y: torch.Tensor,
@@ -171,7 +171,7 @@ class SimpleTrainer:
                 x, y = self.data_loader.get_next_training_batch()
 
                 # calculate and accumulate loss on the batch (x, y):
-                loss = self._model_forward(x=x, y=y)
+                loss = self._model_forward_loss(x=x, y=y)
                 # normalize loss to adjust for multiple accumulation steps:
                 loss = loss / self.num_accumulation_steps
                 loss_est += float(loss.item())

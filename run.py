@@ -9,7 +9,7 @@ from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
 from gpt.models.gpt2 import GPT, GPTConfig
 from gpt.data_loader import SimpleDataLoader
 from gpt.trainer import SimpleTrainer, TrainingConfig
-from gpt.utils import DEFAULT_DEVICE, empty_cache, set_seed
+from gpt.utils import DEFAULT_DEVICE_TYPE, empty_cache, set_seed
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ COMPILE_MODEL = False
 LR = 6e-4
 SEQ_LENGTH = 1024
 
-if DEFAULT_DEVICE == "cuda":
+if DEFAULT_DEVICE_TYPE == "cuda":
     NUM_TRAIN_STEPS = 100
     NUM_ACCUMULATION_STEPS = 16
     BATCH_SIZE = 12
@@ -53,16 +53,16 @@ if __name__ == "__main__":
     empty_cache()
     set_seed(0)
 
-    # TODO!
     torch.set_float32_matmul_precision("high")
-    torch.set_default_device(DEFAULT_DEVICE)
+    # TODO! Check regarding multiple cuda devices!
+    torch.set_default_device(DEFAULT_DEVICE_TYPE)
 
     tokenizer = get_hf_tokenizer()
     tokens = tokenizer(
         "Hi, my",
         return_tensors="pt",
     )
-    x_eval = tokens["input_ids"].to(DEFAULT_DEVICE)
+    x_eval = tokens["input_ids"].to(DEFAULT_DEVICE_TYPE)
 
     def _eval():
         model.eval()
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         )
 
     model_kwargs = {}
-    if DEFAULT_DEVICE == "cuda":
+    if DEFAULT_DEVICE_TYPE == "cuda":
         model_kwargs = {
             "autocast_dtype": "fp16",
         }
@@ -100,7 +100,9 @@ if __name__ == "__main__":
     _eval()
 
     if TRAIN:
-        tokens = tokenize_file_from_disk("data/input.txt").to(DEFAULT_DEVICE)
+        tokens = tokenize_file_from_disk("data/input.txt").to(
+            DEFAULT_DEVICE_TYPE
+        )
 
         model = model.train()
 

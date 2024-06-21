@@ -3,7 +3,7 @@
 import logging
 
 import torch
-from gpt.utils import DEFAULT_DEVICE
+from gpt.utils import DEFAULT_DEVICE_TYPE
 from transformers import (
     AutoTokenizer,
     GPT2LMHeadModel,
@@ -28,7 +28,7 @@ def get_hf_tokenizer(
 
 def get_hf_model(
     model_id: str = "gpt2",
-    device_map: str = DEFAULT_DEVICE,
+    device_map: str = DEFAULT_DEVICE_TYPE,
     **kwargs,
 ) -> PreTrainedModel:
     """Get GPT2-Model."""
@@ -45,7 +45,7 @@ def get_hf_model(
 def tokenize_string_dataset(
     text: str,
     tokenizer: PreTrainedTokenizer = get_hf_tokenizer(),
-    device: str = DEFAULT_DEVICE,
+    device: str = DEFAULT_DEVICE_TYPE,
 ) -> torch.Tensor:
 
     # TODO! We do not handle BOS/EOS tokens here!
@@ -64,7 +64,7 @@ def tokenize_string_dataset(
 def tokenize_file_from_disk(
     file_path: str,
     tokenizer: PreTrainedTokenizer = get_hf_tokenizer(),
-    device: str = DEFAULT_DEVICE,
+    device: str = DEFAULT_DEVICE_TYPE,
 ) -> torch.Tensor:
 
     with open(file_path, "r", encoding="utf-8") as fp:
