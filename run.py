@@ -103,7 +103,9 @@ if __name__ == "__main__":
     logger.info(model)
 
     if IS_DDP_RUN:
+        config = model.config
         model = DDP(model, device_ids=[DEVICE_RANK])
+        model.config = config
 
     if COMPILE_MODEL:
         try:
