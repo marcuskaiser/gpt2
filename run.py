@@ -28,8 +28,8 @@ SEQ_LENGTH = 1024
 print(os.environ)
 
 IS_DDP_RUN = "RANK" in os.environ
-DEVICE_RANK = cast(int, os.environ.get("RANK", 0))
-WORLD_SIZE = cast(int, os.environ.get("WORLD_SIZE", 1))
+DEVICE_RANK = int(os.environ.get("RANK", 0))
+WORLD_SIZE = int(os.environ.get("WORLD_SIZE", 1))
 
 if DEFAULT_DEVICE_TYPE == "cuda":
     NUM_TRAIN_STEPS = 10
@@ -98,7 +98,8 @@ if __name__ == "__main__":
     logger.info({p.device for p in model.parameters()})
     logger.info(model)
 
-    # model = DDP(model, device_ids=[0])
+    if IS_DDP_RUN:
+        model = DDP(model, device_ids=[DEVICE_RANK])
 
     if COMPILE_MODEL:
         try:
