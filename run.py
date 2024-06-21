@@ -84,7 +84,7 @@ if __name__ == "__main__":
     model_kwargs = {}
     if DEFAULT_DEVICE_TYPE == "cuda":
         model_kwargs = {
-            "autocasTYPE_DTYPE": "fp16",
+            "autocast_dtype": "fp16",
         }
 
     if RANDOM:
@@ -127,7 +127,7 @@ if __name__ == "__main__":
         trainer_config = TrainingConfig(
             lr=LR,
             num_accumulation_steps=NUM_ACCUMULATION_STEPS,
-            use_scaler=model.config.autocasTYPE_DTYPE == "fp16",
+            use_scaler=model.config.autocast_dtype == "fp16",
             optmizer=OPTIMIZER,
         )
 
