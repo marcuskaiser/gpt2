@@ -3,6 +3,7 @@
 import logging
 import os
 import sys
+from typing import cast
 
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -26,8 +27,9 @@ SEQ_LENGTH = 1024
 
 print(os.environ)
 
-DEVICE_RANK = os.environ.get("RANK", 0)
-WORLD_SIZE = 1
+IS_DDP_RUN = "RANK" in os.environ
+DEVICE_RANK = cast(int, os.environ.get("RANK", 0))
+WORLD_SIZE = cast(int, os.environ.get("WORLD_SIZE", 1))
 
 if DEFAULT_DEVICE_TYPE == "cuda":
     NUM_TRAIN_STEPS = 10

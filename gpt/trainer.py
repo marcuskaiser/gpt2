@@ -130,6 +130,7 @@ class SimpleTrainer:
         # TODO! Random seed
         # TODO! Learning rate scheduler
         # TODO! Weight decay
+        # TODO! Validation loss
 
         train_logging_str = ", ".join(
             [

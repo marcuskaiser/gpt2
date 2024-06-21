@@ -41,19 +41,19 @@ class SimpleDataLoader:
 
     def _reshape(self, x: torch.Tensor) -> torch.Tensor:
         assert (
-            x.size(1) == self.eff_batch_size
-        ), f"{x.size(1)} != {self.eff_batch_size}"
+            x.size(1) == self.eff_batch_size_per_device
+        ), f"{x.size(1)} != {self.eff_batch_size_per_device}"
         return x.view(self.batch_size, self.seq_len)
 
     def _get_token_slice(self, offset: int) -> torch.Tensor:
         idx_this = slice(
             offset,
-            offset + (self.eff_batch_size + 1),
+            offset + (self.eff_batch_size_per_device + 1),
         )
         tokens_this = self.data[:, idx_this]
         assert (
-            tokens_this.size(1) == self.eff_batch_size + 1
-        ), f"{tokens_this.size(1)} != {self.eff_batch_size + 1}"
+            tokens_this.size(1) == self.eff_batch_size_per_device + 1
+        ), f"{tokens_this.size(1)} != {self.eff_batch_size_per_device + 1}"
         return tokens_this
 
     def _extract_one_training_batch(
@@ -76,7 +76,7 @@ class SimpleDataLoader:
         logger.debug(
             "Extracting training batch %d:%d (total length %d)",
             self._offset,
-            self._offset + self.eff_batch_size,
+            self._offset + self.eff_batch_size_per_device,
             self._data_len,
         )
 
