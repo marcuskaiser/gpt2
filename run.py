@@ -104,10 +104,10 @@ if __name__ == "__main__":
 
     if IS_DDP_RUN:
         config = model.config
-        ddp_model = DDP(model, device_ids=[DEVICE_RANK])
+        model = DDP(model, device_ids=[DEVICE_RANK])
+        model.config = config
 
-        print(list(vars(ddp_model)))
-        ddp_model.config = config
+        print(list(vars(model)))
 
     if COMPILE_MODEL:
         try:
