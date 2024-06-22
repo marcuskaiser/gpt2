@@ -107,8 +107,6 @@ if __name__ == "__main__":
         model = DistributedDataParallel(model, device_ids=[DEVICE_RANK])
         model.config = config
 
-        print(list(vars(model)))
-
     if COMPILE_MODEL:
         try:
             model = torch.compile(model)
