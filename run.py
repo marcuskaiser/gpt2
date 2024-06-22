@@ -5,8 +5,10 @@ import os
 import sys
 
 import torch
+from torch import nn
 from torch.distributed import init_process_group, destroy_process_group
 from torch.nn.parallel import DistributedDataParallel
+from transformers.tokenization_utils import PreTrainedTokenizer
 
 from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
 from gpt.models.gpt2 import GPT, GPTConfig
@@ -27,16 +29,16 @@ SEQ_LENGTH = 1024
 
 
 IS_DDP_RUN = "RANK" in os.environ
-DEVICE_RANK = int(os.environ.get("RANK", 0))
-WORLD_SIZE = int(os.environ.get("WORLD_SIZE", 1))
+DEVICE_RANK = int(os.environ.get("RANK", default=0))
+WORLD_SIZE = int(os.environ.get("WORLD_SIZE", default=1))
 
 if IS_DDP_RUN:
     assert torch.cuda.is_available()
-    torch.cuda.set_device(f"cuda:{DEVICE_RANK}")
+    torch.cuda.set_device(device=f"cuda:{DEVICE_RANK}")
     init_process_group(backend="nccl")
 
 if DEFAULT_DEVICE_TYPE == "cuda":
-    NUM_TRAIN_STEPS = 10
+    NUM_TRAIN_STEPS = 100
     NUM_ACCUMULATION_STEPS = 16
     BATCH_SIZE = 12
     OPTIMIZER = "adamw"
@@ -47,52 +49,12 @@ else:
     OPTIMIZER = "adamw8bit"
 
 
-if __name__ == "__main__":
-
-    logging.basicConfig(level=logging.INFO)
-    for handler in logging.root.handlers[:]:
-        logging.root.removeHandler(handler)
-
-    logging.basicConfig(
-        stream=sys.stderr,
-        level=logging.INFO,
-        # format="%(filename)s:%(lineno)s %(levelname)s:%(message)s",
-    )
-
-    logger.info(
-        "effective_batch_size=%d",
-        SEQ_LENGTH * NUM_ACCUMULATION_STEPS * BATCH_SIZE,
-    )
-
-    empty_cache()
-    set_seed(0)
-
-    torch.set_float32_matmul_precision("high")
-    # TODO! Check regarding multiple cuda devices!
-    torch.set_default_device(DEFAULT_DEVICE_TYPE)
-
-    tokenizer = get_hf_tokenizer()
-    tokens = tokenizer(
-        "Hi, my",
-        return_tensors="pt",
-    )
-    x_eval = tokens["input_ids"].to(DEFAULT_DEVICE_TYPE)
-
-    def _eval():
-        model.eval()
-        output_tokens = model.generate(x_eval, max_new_tokens=30)
-        logger.info(">> %s", output_tokens)
-        logger.info(
-            ">> %s",
-            tokenizer.decode(output_tokens[0]).replace("\n", "\\n"),
-        )
-
-    model_kwargs = {}
+def _get_model() -> nn.Module:
+    model_kwargs: dict[str, str] = {}
     if DEFAULT_DEVICE_TYPE == "cuda":
-        model_kwargs = {
-            "autocast_dtype": "fp16",
-        }
+        model_kwargs["autocast_dtype"] = "fp16"
 
+    model: nn.Module
     if RANDOM:
         config = GPTConfig(**model_kwargs)
         model = GPT(config=config)
@@ -109,10 +71,82 @@ if __name__ == "__main__":
 
     if COMPILE_MODEL:
         try:
-            model = torch.compile(model)
+            model = torch.compile(model=model)
             logger.info("model.compile successful!")
         except AssertionError as exc:
             logger.info("model.compile failed: %s", exc)
+
+    return model
+
+
+def _train():
+
+    tokens: torch.Tensor = tokenize_file_from_disk(
+        file_path="data/input.txt"
+    ).to(device=DEFAULT_DEVICE_TYPE)
+
+    data_loader = SimpleDataLoader(
+        data=tokens,
+        batch_size=BATCH_SIZE,
+        seq_len=SEQ_LENGTH,
+        world_size=WORLD_SIZE,
+        device_rank=DEVICE_RANK,
+    )
+
+    trainer_config = TrainingConfig(
+        lr=LR,
+        num_accumulation_steps=NUM_ACCUMULATION_STEPS,
+        use_scaler=model.config.autocast_dtype == "fp16",
+        optmizer=OPTIMIZER,
+    )
+
+    trainer = SimpleTrainer(
+        config=trainer_config,
+        model=model,
+        data_loader=data_loader,
+    ).train_model(
+        num_train_steps=NUM_TRAIN_STEPS,
+    )
+
+    return trainer
+
+
+if __name__ == "__main__":
+
+    logging.basicConfig(level=logging.INFO)
+    for hdlr in logging.root.handlers[:]:
+        logging.root.removeHandler(hdlr=hdlr)
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+
+    logger.info(
+        "effective_batch_size=%d",
+        SEQ_LENGTH * NUM_ACCUMULATION_STEPS * BATCH_SIZE,
+    )
+
+    empty_cache()
+    set_seed(seed=0)
+
+    torch.set_float32_matmul_precision("high")
+    # TODO! Check regarding multiple cuda devices!
+    torch.set_default_device(DEFAULT_DEVICE_TYPE)
+
+    tokenizer: PreTrainedTokenizer = get_hf_tokenizer()
+    tokens = tokenizer(
+        "Hi, my",
+        return_tensors="pt",
+    )
+    x_eval = tokens["input_ids"].to(DEFAULT_DEVICE_TYPE)
+
+    def _eval():
+        model.eval()
+        output_tokens = model.generate(x_eval, max_new_tokens=30)
+        logger.info(">> %s", output_tokens)
+        logger.info(
+            ">> %s",
+            tokenizer.decode(output_tokens[0]).replace("\n", "\\n"),
+        )
+
+    model = _get_model()
 
     logger.info("%s", model.config)
 
@@ -120,32 +154,7 @@ if __name__ == "__main__":
         _eval()
 
     if TRAIN:
-        tokens: torch.Tensor = tokenize_file_from_disk(
-            file_path="data/input.txt"
-        ).to(device=DEFAULT_DEVICE_TYPE)
-
-        data_loader = SimpleDataLoader(
-            data=tokens,
-            batch_size=BATCH_SIZE,
-            seq_len=SEQ_LENGTH,
-            world_size=WORLD_SIZE,
-            device_rank=DEVICE_RANK,
-        )
-
-        trainer_config = TrainingConfig(
-            lr=LR,
-            num_accumulation_steps=NUM_ACCUMULATION_STEPS,
-            use_scaler=model.config.autocast_dtype == "fp16",
-            optmizer=OPTIMIZER,
-        )
-
-        trainer = SimpleTrainer(
-            config=trainer_config,
-            model=model,
-            data_loader=data_loader,
-        ).train_model(
-            num_train_steps=NUM_TRAIN_STEPS,
-        )
+        trainer = _train()
 
         if not IS_DDP_RUN:
             _eval()
