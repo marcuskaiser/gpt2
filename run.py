@@ -130,6 +130,7 @@ if __name__ == "__main__":
     torch.set_float32_matmul_precision(precision="high")
     empty_cache()
     set_seed(seed=0)
+    setup_ddp()
 
     config = _get_config()
 
@@ -152,7 +153,6 @@ if __name__ == "__main__":
             # TODO!
             pass
 
-    setup_ddp()
     model = _load_model(config=config)
 
     _eval(config=config)
