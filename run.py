@@ -2,6 +2,7 @@
 
 import logging
 import sys
+from typing import Any
 
 import torch
 from gpt.config import Config
@@ -13,9 +14,8 @@ from gpt.utils import (
     DEFAULT_DEVICE_TYPE,
     empty_cache,
     set_seed,
-    setup_ddp,
-    teardown_ddp,
 )
+from gpt.distributed import teardown_ddp
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel
 
@@ -50,13 +50,12 @@ def _get_config() -> Config:
 
     config.training_config.lr = LR
     config.training_config.num_accumulation_steps = NUM_ACCUMULATION_STEPS
+    config.training_config.optimizer = OPTIMIZER
     config.training_config.use_scaler = (
         config.gpt_config.autocast_dtype == "fp16"
     )
-    config.training_config.optimizer = OPTIMIZER
 
     logger.info("config=%s", config.model_dump_json())
-
     return config
 
 
@@ -115,6 +114,30 @@ def _train(
     )
 
 
+def _eval(
+    config: Config,
+    model: nn.Module,
+    tokenizer: Any,
+) -> None:
+
+    tokens = tokenizer(
+        "Hi, my",
+        return_tensors="pt",
+    )
+    x_eval = tokens["input_ids"].to(DEFAULT_DEVICE_TYPE)
+
+    if config.ddp_config.is_ddp_run:
+        model.eval()
+        output_tokens = model.generate(x_eval, max_new_tokens=30)
+        logger.info(">> %s", output_tokens)
+        output_message = tokenizer.decode(token_ids=output_tokens[0])
+        output_message = output_message.replace("\n", "\\n")
+        logger.info(">> %s", output_message)
+    else:
+        # TODO!
+        pass
+
+
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
@@ -130,38 +153,20 @@ if __name__ == "__main__":
     torch.set_float32_matmul_precision(precision="high")
     empty_cache()
     set_seed(seed=0)
-    setup_ddp()
 
     config = _get_config()
 
     tokenizer = get_hf_tokenizer()
-    tokens = tokenizer(
-        "Hi, my",
-        return_tensors="pt",
-    )
-    x_eval = tokens["input_ids"].to(DEFAULT_DEVICE_TYPE)
-
-    def _eval(config: Config):
-        if config.ddp_config.is_ddp_run:
-            model.eval()
-            output_tokens = model.generate(x_eval, max_new_tokens=30)
-            logger.info(">> %s", output_tokens)
-            output_message = tokenizer.decode(token_ids=output_tokens[0])
-            output_message = output_message.replace("\n", "\\n")
-            logger.info(">> %s", output_message)
-        else:
-            # TODO!
-            pass
 
     model = _load_model(config=config)
 
-    _eval(config=config)
+    _eval(config=config, model=model, tokenizer=tokenizer)
     if TRAIN:
         _train(
             config=config,
             model=model,
         )
-        _eval(config=config)
+        _eval(config=config, model=model, tokenizer=tokenizer)
 
     if config.ddp_config.is_ddp_run:
         teardown_ddp()

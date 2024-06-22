@@ -1,17 +1,11 @@
 """Utils for GPT Model"""
 
 import logging
-from typing import Any, Literal, cast
+from typing import Literal, cast
 
 import torch
 from bitsandbytes.optim import AdamW8bit
 from torch import nn
-from torch.distributed import (
-    destroy_process_group,
-    get_rank,
-    get_world_size,
-    init_process_group,
-)
 from torch.distributed.optim import ZeroRedundancyOptimizer
 from torch.optim import AdamW
 
@@ -148,26 +142,3 @@ def _check_model_copied(
 
 
 DEFAULT_DEVICE_TYPE = get_device_type()
-
-
-def setup_ddp() -> str:
-    """Setup to be run before DDP run."""
-    try:
-        assert torch.cuda.is_available()
-        init_process_group(backend="nccl")
-        device_rank = get_rank()
-        device = f"cuda:{device_rank}"
-        torch.set_default_device(device=device)
-        torch.cuda.set_device(device=device)
-        return device
-
-    except (AssertionError, ValueError) as exc:
-        logger.info("Cannot use DDP: exc=%s", exc)
-        torch.set_default_device(device=DEFAULT_DEVICE_TYPE)
-        return DEFAULT_DEVICE_TYPE
-
-
-def teardown_ddp() -> None:
-    """Teardown after DDP run."""
-    destroy_process_group()
-    logger.info(msg="DPP Cleanup: Destroyed process group.")

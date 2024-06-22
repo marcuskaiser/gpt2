@@ -34,7 +34,9 @@ class SimpleDataLoader:
 
         # TODO! Add offset for multiple cuda devices!
         self.eff_batch_size_per_device = self.batch_size * self.seq_length
+        assert self.eff_batch_size_per_device > 0
         self.eff_batch_size = self.eff_batch_size_per_device * self.world_size
+        assert self.eff_batch_size > 0
 
         self._offset = self.eff_batch_size_per_device * self.device_rank
         self._batch_counter = 0

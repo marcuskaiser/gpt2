@@ -2,13 +2,15 @@ import logging
 from typing import Any
 
 import torch
-from torch.distributed import get_world_size, get_rank
+from gpt.distributed import WORLD_SIZE, DEVICE_RANK, IS_DDP_RUN
 from gpt.utils import (
     DEFAULT_DEVICE_TYPE,
     TYPE_DEVICE_TYPE,
     TYPE_DTYPE,
     TYPE_OPTIMIZER,
 )
+
+
 from pydantic import BaseModel
 
 logger = logging.getLogger(name=__name__)
@@ -66,23 +68,9 @@ class DataConfig(BaseModel):
 class DDPConfig(BaseModel):
     """DDP Config."""
 
-    is_ddp_run: bool = False
-    device_rank: int = 0
-    world_size: int = 1
-
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self._retrieve_setup()
-
-    def _retrieve_setup(self) -> None:
-        try:
-            assert torch.cuda.is_available()
-            self.device_rank = get_rank()
-            self.world_size = get_world_size()
-
-        except (AssertionError, ValueError, RuntimeError) as exc:
-            logger.info("exc=%s", exc)
-            self.is_ddp_run = False
+    is_ddp_run: bool = IS_DDP_RUN
+    device_rank: int = DEVICE_RANK
+    world_size: int = WORLD_SIZE
 
 
 class Config(BaseModel):

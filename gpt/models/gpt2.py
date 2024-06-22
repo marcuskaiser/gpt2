@@ -6,7 +6,6 @@ Based on Karpathy's https://www.youtube.com/watch?v=l8pRSuU81PU
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 import torch
 import torch.nn.functional as F
