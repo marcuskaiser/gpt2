@@ -120,22 +120,22 @@ def _eval(
     tokenizer: Any,
 ) -> None:
 
-    tokens = tokenizer(
-        "Hi, my",
-        return_tensors="pt",
-    )
-    x_eval = tokens["input_ids"].to(DEFAULT_DEVICE_TYPE)
+    print("config.ddp_config.is_ddp_run", config.ddp_config.is_ddp_run)
 
-    if config.ddp_config.is_ddp_run:
+    if not config.ddp_config.is_ddp_run:
+
+        tokens = tokenizer(
+            "Hi, my",
+            return_tensors="pt",
+        )
+        x_eval = tokens["input_ids"].to(DEFAULT_DEVICE_TYPE)
+
         model.eval()
         output_tokens = model.generate(x_eval, max_new_tokens=30)
         logger.info(">> %s", output_tokens)
         output_message = tokenizer.decode(token_ids=output_tokens[0])
         output_message = output_message.replace("\n", "\\n")
         logger.info(">> %s", output_message)
-    else:
-        # TODO!
-        pass
 
 
 if __name__ == "__main__":
