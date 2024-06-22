@@ -190,7 +190,7 @@ class SimpleTrainer:
                 scaler.scale(loss).backward()
 
             if self._ddp:
-                loss_est = all_reduce(tensor=loss_est, op=ReduceOp.AVG)
+                all_reduce(tensor=loss_est, op=ReduceOp.AVG)
 
             # unscales gradients inplace:
             scaler.unscale_(self.optimizer)
