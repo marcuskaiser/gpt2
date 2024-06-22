@@ -4,17 +4,18 @@ from __future__ import annotations
 
 import logging
 import time
-from torch.nn.parallel import DistributedDataParallel
+
 import torch
 from pydantic import BaseModel
 from torch import nn
 from torch.cuda.amp import GradScaler
-from torch.distributed import all_reduce, ReduceOp
+from torch.distributed import ReduceOp, all_reduce
+from torch.nn.parallel import DistributedDataParallel
 
 from gpt.data_loader import SimpleDataLoader
-from gpt.utils import DTYPE_MAP, get_optimizer, TYPE_OPTIMIZER
+from gpt.utils import DTYPE_MAP, TYPE_OPTIMIZER, get_optimizer
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(name=__name__)
 
 
 class TrainingConfig(BaseModel):
@@ -190,7 +191,6 @@ class SimpleTrainer:
             if self._ddp:
                 loss_est = all_reduce(loss_est, op=ReduceOp.AVG)
 
-            ####
             # unscales gradients inplace:
             scaler.unscale_(self.optimizer)
 
@@ -199,8 +199,8 @@ class SimpleTrainer:
                 parameters=self.model.parameters(),
                 max_norm=1.0,
             )
-            # optimizer's gradients are already unscaled, so scaler.step does not unscale them,
-            # although it still skips optimizer.step() if the gradients contain infs or NaNs.
+            # NB: gradients already unscaled, so scaler.step does not unscale
+            #   again, but still skips the step if gradients are NANs.
             scaler.step(self.optimizer)
 
             # updates the scale for next iteration:

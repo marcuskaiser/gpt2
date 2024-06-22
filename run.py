@@ -5,7 +5,7 @@ import os
 import sys
 
 import torch
-from torch.distributed import init_process_group
+from torch.distributed import init_process_group, destroy_process_group
 from torch.nn.parallel import DistributedDataParallel
 
 from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
@@ -122,11 +122,9 @@ if __name__ == "__main__":
         _eval()
 
     if TRAIN:
-        tokens = tokenize_file_from_disk("data/input.txt").to(
-            DEFAULT_DEVICE_TYPE
-        )
-
-        model = model.train()
+        tokens: torch.Tensor = tokenize_file_from_disk(
+            file_path="data/input.txt"
+        ).to(device=DEFAULT_DEVICE_TYPE)
 
         data_loader = SimpleDataLoader(
             data=tokens,
@@ -153,3 +151,6 @@ if __name__ == "__main__":
 
         if not IS_DDP_RUN:
             _eval()
+
+    if IS_DDP_RUN:
+        destroy_process_group()

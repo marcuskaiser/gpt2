@@ -3,13 +3,14 @@
 import logging
 
 import torch
-from gpt.utils import DEFAULT_DEVICE_TYPE
 from transformers import (
     AutoTokenizer,
     GPT2LMHeadModel,
     PreTrainedModel,
     PreTrainedTokenizer,
 )
+
+from gpt.utils import DEFAULT_DEVICE_TYPE
 
 logger = logging.getLogger(__name__)
 

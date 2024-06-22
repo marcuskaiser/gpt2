@@ -15,9 +15,9 @@ from torch import nn
 
 from gpt.utils import (
     DEFAULT_DEVICE_TYPE,
-    copy_model_weights,
-    TYPE_DTYPE,
     TYPE_DEVICE_TYPE,
+    TYPE_DTYPE,
+    copy_model_weights,
 )
 
 logger = logging.getLogger(__name__)
