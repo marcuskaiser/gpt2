@@ -170,7 +170,7 @@ class SimpleTrainer:
         for i_step in range(num_train_steps):
 
             # Gradient accumulation:
-            loss_est = 0.0
+            loss_est = torch.zeros(1)
             for _ in range(self.num_accumulation_steps):
                 x, y = self.data_loader.get_next_training_batch()
 
@@ -183,7 +183,7 @@ class SimpleTrainer:
                 loss = self._model_forward_loss(x=x, y=y)
                 # normalize loss to adjust for multiple accumulation steps:
                 loss = loss / self.num_accumulation_steps
-                loss_est += float(loss.item())
+                loss_est += loss.clone().detach()
 
                 # calculate backward path and accumulate grads in leaves:
                 scaler.scale(loss).backward()
