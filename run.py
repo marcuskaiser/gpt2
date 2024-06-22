@@ -4,7 +4,7 @@ import logging
 import sys
 
 import torch
-from gpt.config import Config, GPTConfig, TrainingConfig
+from gpt.config import Config
 from gpt.data_loader import SimpleDataLoader
 from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
 from gpt.models.gpt2 import GPT

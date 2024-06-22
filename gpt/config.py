@@ -80,7 +80,7 @@ class DDPConfig(BaseModel):
             self.device_rank = get_rank()
             self.world_size = get_world_size()
 
-        except (AssertionError, ValueError) as exc:
+        except (AssertionError, ValueError, RuntimeError) as exc:
             logger.info("exc=%s", exc)
             self.is_ddp_run = False
 
