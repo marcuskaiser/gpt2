@@ -9,6 +9,7 @@ import torch
 from pydantic import BaseModel
 from torch import nn
 from torch.cuda.amp import GradScaler
+from torch.distributed import all_reduce, ReduceOp
 
 from gpt.data_loader import SimpleDataLoader
 from gpt.utils import DTYPE_MAP, get_optimizer, TYPE_OPTIMIZER
@@ -185,6 +186,9 @@ class SimpleTrainer:
 
                 # calculate backward path and accumulate grads in leaves:
                 scaler.scale(loss).backward()
+
+            if self._ddp:
+                loss_est = all_reduce(loss_est, op=ReduceOp.AVG)
 
             ####
             # unscales gradients inplace:
