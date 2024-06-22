@@ -52,10 +52,11 @@ class GPTConfig(BaseModel):
 class TrainingConfig(BaseModel):
     """Training config."""
 
+    optimizer: TYPE_OPTIMIZER = "adamw"
     lr: float = 3e-4
     num_accumulation_steps: int = 1
     use_scaler: bool = True
-    optimizer: TYPE_OPTIMIZER = "adamw"
+    use_zero: bool = False
 
 
 class DataConfig(BaseModel):

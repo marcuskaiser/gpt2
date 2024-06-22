@@ -11,7 +11,7 @@ from torch.cuda.amp import GradScaler
 from torch.distributed import ReduceOp, all_reduce
 from torch.nn.parallel import DistributedDataParallel
 
-from gpt.config import TrainingConfig
+from gpt.config import Config
 from gpt.data_loader import SimpleDataLoader
 from gpt.utils import DTYPE_MAP, get_optimizer
 
@@ -52,13 +52,13 @@ class SimpleTrainer:
 
     def __init__(
         self,
-        config: TrainingConfig,
+        config: Config,
         model: nn.Module,
         data_loader: SimpleDataLoader,
     ) -> None:
 
         self.config = config
-        assert isinstance(self.config, TrainingConfig), type(self.config)
+        assert isinstance(self.config, Config), type(self.config)
 
         self.model = model
         assert isinstance(self.model, nn.Module)
@@ -67,23 +67,25 @@ class SimpleTrainer:
         self.data_loader = data_loader
         assert isinstance(self.data_loader, SimpleDataLoader)
 
-        self.lr = config.lr
+        self.lr = config.training_config.lr
         assert self.lr > 0
 
-        self.num_accumulation_steps = config.num_accumulation_steps
+        self.num_accumulation_steps = (
+            self.config.training_config.num_accumulation_steps
+        )
         assert self.num_accumulation_steps >= 1, self.num_accumulation_steps
 
-        self._is_mps = self.model.config.device == "mps"
-        self._is_cuda = self.model.config.device == "cuda"
+        self._is_mps = self.config.gpt_config.device == "mps"
+        self._is_cuda = self.config.gpt_config.device == "cuda"
 
-        if self.config.use_scaler:
+        if self.config.training_config.use_scaler:
             assert self._is_cuda, (
                 "use_scaler only works with device=`cuda`. "
-                f"Got: {self.model.config.device}"
+                f"Got: {self.config.gpt_config.device}"
             )
         else:
             assert (
-                self.model.config.autocast_dtype != "fp16"
+                self.config.gpt_config.autocast_dtype != "fp16"
             ), "Cannot use autocast_dtype=`fp16` with use_scaler=`False`!"
 
         self.optimizer: torch.optim.Optimizer
@@ -97,9 +99,10 @@ class SimpleTrainer:
 
     def _reset_optimizer(self) -> None:
         self.optimizer = get_optimizer(
-            optimizer=self.config.optimizer,
+            optimizer=self.config.training_config.optimizer,
             params=self.model.parameters(),
             lr=self.lr,
+            use_zero=self.config.training_config.use_zero,
         )
         # NB: Not all optimizer versions have the `fused` param:
         if self._is_cuda and hasattr(self.optimizer, "fused"):
@@ -163,7 +166,10 @@ class SimpleTrainer:
         )
 
         scaler = NoScaler()
-        if self.config.use_scaler and self.model.config.device == "cuda":
+        if (
+            self.config.training_config.use_scaler
+            and self.config.gpt_config.device == "cuda"
+        ):
             scaler = GradScaler()
 
         t_init = t_last = time.time()

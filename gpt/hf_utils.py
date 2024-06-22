@@ -70,7 +70,7 @@ def tokenize_file_from_disk(
 ) -> torch.Tensor:
     """Tokenize a text file from disk into a torch.Tensor of tokens."""
 
-    with open(file_path, "r", encoding="utf-8") as fp:
+    with open(file=file_path, mode="r", encoding="utf-8") as fp:
         text = fp.read()
 
     logger.info(

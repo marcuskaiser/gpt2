@@ -34,11 +34,13 @@ if DEFAULT_DEVICE_TYPE == "cuda":
     NUM_ACCUMULATION_STEPS = 16
     BATCH_SIZE = 12
     OPTIMIZER = "adamw8bit"
+    AUTOCAST_DTYPE = "fp16"
 else:
     NUM_TRAIN_STEPS = 5
     NUM_ACCUMULATION_STEPS = 4
     BATCH_SIZE = 1
     OPTIMIZER = "adamw"
+    AUTOCAST_DTYPE = "bf16"
 
 
 def _get_config() -> Config:
@@ -48,13 +50,16 @@ def _get_config() -> Config:
     config.data_config.batch_size = BATCH_SIZE
     config.data_config.seq_length = SEQ_LENGTH
 
-    config.gpt_config.autocast_dtype = "fp16"
+    # TODO! Auto-infer?
+
+    config.gpt_config.autocast_dtype = AUTOCAST_DTYPE
     config.training_config.lr = LR
     config.training_config.num_accumulation_steps = NUM_ACCUMULATION_STEPS
     config.training_config.optimizer = OPTIMIZER
     config.training_config.use_scaler = (
         config.gpt_config.autocast_dtype == "fp16"
     )
+    config.training_config.use_zero = DEFAULT_DEVICE_TYPE == "cuda"
 
     logger.info("config=%s", config.model_dump_json())
     return config
@@ -106,11 +111,12 @@ def _train(
 
     data_loader = SimpleDataLoader(config=config, data=tokens)
 
-    SimpleTrainer(
-        config=config.training_config,
+    trainer = SimpleTrainer(
+        config=config,
         model=model,
         data_loader=data_loader,
-    ).train_model(
+    )
+    trainer.train_model(
         num_train_steps=NUM_TRAIN_STEPS,
     )
 

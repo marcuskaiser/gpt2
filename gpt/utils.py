@@ -28,6 +28,9 @@ def get_device_type() -> TYPE_DEVICE_TYPE:
     return cast(TYPE_DEVICE_TYPE, device)
 
 
+DEFAULT_DEVICE_TYPE = get_device_type()
+
+
 DTYPE_MAP: dict[TYPE_DTYPE, torch.dtype] = {
     "fp32": torch.float32,
     "fp16": torch.float16,
@@ -139,6 +142,3 @@ def _check_model_copied(
         assert max_diff < 1e-12, f"Found {key} with max_diff={max_diff}!"
 
     logger.info("Model weights copy check successful.")
-
-
-DEFAULT_DEVICE_TYPE = get_device_type()
