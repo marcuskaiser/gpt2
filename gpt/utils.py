@@ -1,11 +1,18 @@
 """Utils for GPT Model"""
 
 import logging
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 import torch
 from bitsandbytes.optim import AdamW8bit
 from torch import nn
+from torch.distributed import (
+    destroy_process_group,
+    get_rank,
+    get_world_size,
+    init_process_group,
+)
+from torch.distributed.optim import ZeroRedundancyOptimizer
 from torch.optim import AdamW
 
 logger = logging.getLogger(__name__)
@@ -36,14 +43,22 @@ DTYPE_MAP: dict[TYPE_DTYPE, torch.dtype] = {
 
 def get_optimizer(
     optimizer: TYPE_OPTIMIZER = "adamw",
+    use_zero: bool = False,
     **kwargs,
 ) -> torch.optim.Optimizer:
     """Get the optimizer."""
 
     if optimizer == "adamw":
-        return AdamW(**kwargs)
+        op_class = AdamW
     else:
-        return AdamW8bit(**kwargs)
+        op_class = AdamW8bit
+
+    if use_zero:
+        return ZeroRedundancyOptimizer(
+            optimizer_class=op_class,
+            **kwargs,
+        )
+    return op_class(**kwargs)
 
 
 def empty_cache() -> None:
@@ -133,3 +148,27 @@ def _check_model_copied(
 
 
 DEFAULT_DEVICE_TYPE = get_device_type()
+
+
+def setup_ddp() -> str:
+    """Setup to be run before DDP run."""
+    try:
+        assert torch.cuda.is_available()
+        device_rank = get_rank()
+
+        device = f"cuda:{device_rank}"
+        torch.set_default_device(device=device)
+        torch.cuda.set_device(device=device)
+        init_process_group(backend="nccl")
+        return device
+
+    except (AssertionError, ValueError) as exc:
+        logger.info("Cannot use DDP: exc=%s", exc)
+        torch.set_default_device(device=DEFAULT_DEVICE_TYPE)
+        return DEFAULT_DEVICE_TYPE
+
+
+def teardown_ddp() -> None:
+    """Teardown after DDP run."""
+    destroy_process_group()
+    logger.info(msg="DPP Cleanup: Destroyed process group.")

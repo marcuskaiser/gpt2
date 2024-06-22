@@ -6,23 +6,16 @@ import logging
 import time
 
 import torch
-from pydantic import BaseModel
 from torch import nn
 from torch.cuda.amp import GradScaler
 from torch.distributed import ReduceOp, all_reduce
 from torch.nn.parallel import DistributedDataParallel
 
+from gpt.config import TrainingConfig
 from gpt.data_loader import SimpleDataLoader
-from gpt.utils import DTYPE_MAP, TYPE_OPTIMIZER, get_optimizer
+from gpt.utils import DTYPE_MAP, get_optimizer
 
 logger = logging.getLogger(name=__name__)
-
-
-class TrainingConfig(BaseModel):
-    lr: float = 3e-4
-    num_accumulation_steps: int = 1
-    use_scaler: bool = True
-    optimizer: TYPE_OPTIMIZER = "adamw"
 
 
 class NoScaler:
@@ -65,7 +58,7 @@ class SimpleTrainer:
     ) -> None:
 
         self.config = config
-        assert isinstance(self.config, TrainingConfig)
+        assert isinstance(self.config, TrainingConfig), type(self.config)
 
         self.model = model
         assert isinstance(self.model, nn.Module)

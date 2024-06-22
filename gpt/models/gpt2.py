@@ -10,50 +10,13 @@ from typing import Any
 
 import torch
 import torch.nn.functional as F
-from pydantic import BaseModel
 from torch import nn
+from transformers.modeling_utils import PreTrainedModel
 
-from gpt.utils import (
-    DEFAULT_DEVICE_TYPE,
-    TYPE_DEVICE_TYPE,
-    TYPE_DTYPE,
-    copy_model_weights,
-)
+from gpt.config import GPTConfig
+from gpt.utils import copy_model_weights
 
 logger = logging.getLogger(__name__)
-
-
-class GPTConfig(BaseModel):
-    """Base class"""
-
-    block_size: int = 1024  # Max sequence length.
-    vocab_size: int = 50257  # Size of vocabulary
-    n_layer: int = 12  # Number of transformer blocks
-    n_head: int = 12  # Number of heads
-    n_embd: int = 768  # Latent dimension
-    mlp_factor: int = 4  # multiplicative factor in MLP latent dim.
-    autocast_dtype: TYPE_DTYPE = "bf16"
-    device: TYPE_DEVICE_TYPE = DEFAULT_DEVICE_TYPE
-
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        assert self.n_embd % self.n_head == 0
-
-    @property
-    def head_dim(self):
-        """Calculate head dimension."""
-        return self.n_embd // self.n_head
-
-    def get_model_kwargs(self) -> dict[str, Any]:
-        """Returns model training kwargs."""
-        if self.device == "mps":
-            return {
-                "device": self.device,
-                "dtype": torch.bfloat16,
-            }
-        return {
-            "device": self.device,
-        }
 
 
 # TODO! Model initialization: Are the default initialization ranges ok?
@@ -165,7 +128,7 @@ class GPT(nn.Module):
 
         # TODO! Weight initialization
         self.transformer = nn.ModuleDict(
-            {
+            modules={
                 "wte": nn.Embedding(
                     num_embeddings=config.vocab_size,
                     embedding_dim=config.n_embd,
@@ -177,7 +140,7 @@ class GPT(nn.Module):
                     **self.config.get_model_kwargs(),
                 ),  # Positional embedding layer
                 "h": nn.ModuleList(
-                    [
+                    modules=[
                         TransformerBlock(config=config)
                         for _ in range(config.n_layer)
                     ]
@@ -256,14 +219,13 @@ class GPT(nn.Module):
     @classmethod
     def from_pretrained(
         cls,
-        **kwargs,
+        config: GPTConfig,
     ) -> GPT:
         """Naive method to load model from pretrained."""
         from gpt.hf_utils import get_hf_model
 
-        config = GPTConfig(**kwargs)
         model = GPT(config=config)
-        model_hf = get_hf_model()
+        model_hf: PreTrainedModel = get_hf_model()
 
         copy_model_weights(
             input_model=model_hf,

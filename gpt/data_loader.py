@@ -2,6 +2,8 @@ import logging
 
 import torch
 
+from gpt.config import Config
+
 logger = logging.getLogger(__name__)
 
 
@@ -10,30 +12,29 @@ logger = logging.getLogger(__name__)
 class SimpleDataLoader:
     def __init__(
         self,
+        config: Config,
         data: torch.Tensor,
-        batch_size: int,
-        seq_len: int,
-        device_rank: int,
-        world_size: int,
     ) -> None:
+        self.config = config
+
         self.data = data
         assert data.ndim == 2
         assert data.size(0) == 1
         assert data.size(1) > 0
         self._data_len = self.data.size(1)
 
-        self.batch_size = batch_size
+        self.batch_size = self.config.data_config.batch_size
         assert self.batch_size > 0
 
-        self.seq_len = seq_len
-        assert self.seq_len > 0
+        self.seq_length = self.config.data_config.seq_length
+        assert self.seq_length > 0
+
+        self.device_rank = self.config.ddp_config.device_rank
+        self.world_size = self.config.ddp_config.world_size
 
         # TODO! Add offset for multiple cuda devices!
-        self.eff_batch_size_per_device = self.batch_size * self.seq_len
-        self.eff_batch_size = self.batch_size * self.seq_len * world_size
-
-        self.device_rank = device_rank
-        self.world_size = world_size
+        self.eff_batch_size_per_device = self.batch_size * self.seq_length
+        self.eff_batch_size = self.eff_batch_size_per_device * self.world_size
 
         self._offset = self.eff_batch_size_per_device * self.device_rank
         self._batch_counter = 0
@@ -43,7 +44,7 @@ class SimpleDataLoader:
         assert (
             x.size(1) == self.eff_batch_size_per_device
         ), f"{x.size(1)} != {self.eff_batch_size_per_device}"
-        return x.view(self.batch_size, self.seq_len)
+        return x.view(self.batch_size, self.seq_length)
 
     def _get_token_slice(self, offset: int) -> torch.Tensor:
         idx_this = slice(

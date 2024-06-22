@@ -1,29 +1,25 @@
 """Test run loading the model"""
 
 import logging
-import os
 import sys
 
 import torch
-from torch import nn
-from torch.distributed import (
-    init_process_group,
-    destroy_process_group,
-    get_rank,
-    get_world_size,
-)
-from torch.nn.parallel import DistributedDataParallel
-from transformers.tokenization_utils import PreTrainedTokenizer
-
-from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
-from gpt.models.gpt2 import GPT, GPTConfig
+from gpt.config import Config, GPTConfig, TrainingConfig
 from gpt.data_loader import SimpleDataLoader
-from gpt.trainer import SimpleTrainer, TrainingConfig
-from gpt.utils import DEFAULT_DEVICE_TYPE, empty_cache, set_seed
-
+from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
+from gpt.models.gpt2 import GPT
+from gpt.trainer import SimpleTrainer
+from gpt.utils import (
+    DEFAULT_DEVICE_TYPE,
+    empty_cache,
+    set_seed,
+    setup_ddp,
+    teardown_ddp,
+)
+from torch import nn
+from torch.nn.parallel import DistributedDataParallel
 
 logger = logging.getLogger(__name__)
-
 
 RANDOM = False
 TRAIN = True
@@ -33,50 +29,60 @@ LR = 6e-4
 SEQ_LENGTH = 1024
 
 
-try:
-    IS_DDP_RUN = True
-    DEVICE_RANK = get_rank()
-    WORLD_SIZE = get_world_size()
-    assert torch.cuda.is_available()
-    torch.cuda.set_device(device=f"cuda:{DEVICE_RANK}")
-    init_process_group(backend="nccl")
-
-except Exception as exc:
-    IS_DDP_RUN = False
-    DEVICE_RANK = 0
-    WORLD_SIZE = 1
-
 if DEFAULT_DEVICE_TYPE == "cuda":
     NUM_TRAIN_STEPS = 100
     NUM_ACCUMULATION_STEPS = 16
     BATCH_SIZE = 12
-    OPTIMIZER = "adamw"
+    OPTIMIZER = "adamw8bit"
 else:
     NUM_TRAIN_STEPS = 5
     NUM_ACCUMULATION_STEPS = 4
     BATCH_SIZE = 1
-    OPTIMIZER = "adamw8bit"
+    OPTIMIZER = "adamw"
 
 
-def _get_model() -> nn.Module:
+def _get_config() -> Config:
+    """Get config."""
+
+    config = Config()
+    config.data_config.batch_size = BATCH_SIZE
+    config.data_config.seq_length = SEQ_LENGTH
+
+    config.training_config.lr = LR
+    config.training_config.num_accumulation_steps = NUM_ACCUMULATION_STEPS
+    config.training_config.use_scaler = (
+        config.gpt_config.autocast_dtype == "fp16"
+    )
+    config.training_config.optimizer = OPTIMIZER
+
+    logger.info("config=%s", config.model_dump_json())
+
+    return config
+
+
+def _load_model(
+    config: Config,
+) -> nn.Module:
+    """Load model."""
     model_kwargs: dict[str, str] = {}
     if DEFAULT_DEVICE_TYPE == "cuda":
         model_kwargs["autocast_dtype"] = "fp16"
 
     model: nn.Module
     if RANDOM:
-        config = GPTConfig(**model_kwargs)
-        model = GPT(config=config)
+        model = GPT(config=config.gpt_config)
     else:
-        model = GPT.from_pretrained(**model_kwargs)
+        model = GPT.from_pretrained(config=config.gpt_config)
 
     logger.info({p.device for p in model.parameters()})
     logger.info(model)
 
-    if IS_DDP_RUN:
-        config = model.config
-        model = DistributedDataParallel(model, device_ids=[DEVICE_RANK])
-        model.config = config
+    if config.ddp_config.is_ddp_run:
+        model = DistributedDataParallel(
+            module=model,
+            device_ids=[config.ddp_config.device_rank],
+        )
+        model.config = config.gpt_config
 
     if COMPILE_MODEL:
         try:
@@ -88,36 +94,25 @@ def _get_model() -> nn.Module:
     return model
 
 
-def _train():
+def _train(
+    config: Config,
+    model: nn.Module,
+) -> None:
+    """Train model."""
 
     tokens: torch.Tensor = tokenize_file_from_disk(
         file_path="data/input.txt"
     ).to(device=DEFAULT_DEVICE_TYPE)
 
-    data_loader = SimpleDataLoader(
-        data=tokens,
-        batch_size=BATCH_SIZE,
-        seq_len=SEQ_LENGTH,
-        world_size=WORLD_SIZE,
-        device_rank=DEVICE_RANK,
-    )
+    data_loader = SimpleDataLoader(config=config, data=tokens)
 
-    trainer_config = TrainingConfig(
-        lr=LR,
-        num_accumulation_steps=NUM_ACCUMULATION_STEPS,
-        use_scaler=model.config.autocast_dtype == "fp16",
-        optmizer=OPTIMIZER,
-    )
-
-    trainer = SimpleTrainer(
-        config=trainer_config,
+    SimpleTrainer(
+        config=config.training_config,
         model=model,
         data_loader=data_loader,
     ).train_model(
         num_train_steps=NUM_TRAIN_STEPS,
     )
-
-    return trainer
 
 
 if __name__ == "__main__":
@@ -132,41 +127,41 @@ if __name__ == "__main__":
         SEQ_LENGTH * NUM_ACCUMULATION_STEPS * BATCH_SIZE,
     )
 
+    torch.set_float32_matmul_precision(precision="high")
     empty_cache()
     set_seed(seed=0)
 
-    torch.set_float32_matmul_precision("high")
-    # TODO! Check regarding multiple cuda devices!
-    torch.set_default_device(DEFAULT_DEVICE_TYPE)
+    config = _get_config()
 
-    tokenizer: PreTrainedTokenizer = get_hf_tokenizer()
+    tokenizer = get_hf_tokenizer()
     tokens = tokenizer(
         "Hi, my",
         return_tensors="pt",
     )
     x_eval = tokens["input_ids"].to(DEFAULT_DEVICE_TYPE)
 
-    def _eval():
-        model.eval()
-        output_tokens = model.generate(x_eval, max_new_tokens=30)
-        logger.info(">> %s", output_tokens)
-        logger.info(
-            ">> %s",
-            tokenizer.decode(output_tokens[0]).replace("\n", "\\n"),
-        )
+    def _eval(config: Config):
+        if config.ddp_config.is_ddp_run:
+            model.eval()
+            output_tokens = model.generate(x_eval, max_new_tokens=30)
+            logger.info(">> %s", output_tokens)
+            output_message = tokenizer.decode(token_ids=output_tokens[0])
+            output_message = output_message.replace("\n", "\\n")
+            logger.info(">> %s", output_message)
+        else:
+            # TODO!
+            pass
 
-    model = _get_model()
+    setup_ddp()
+    model = _load_model(config=config)
 
-    logger.info("%s", model.config)
-
-    if not IS_DDP_RUN:
-        _eval()
-
+    _eval(config=config)
     if TRAIN:
-        trainer = _train()
+        _train(
+            config=config,
+            model=model,
+        )
+        _eval(config=config)
 
-        if not IS_DDP_RUN:
-            _eval()
-
-    if IS_DDP_RUN:
-        destroy_process_group()
+    if config.ddp_config.is_ddp_run:
+        teardown_ddp()
