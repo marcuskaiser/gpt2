@@ -154,12 +154,11 @@ def setup_ddp() -> str:
     """Setup to be run before DDP run."""
     try:
         assert torch.cuda.is_available()
+        init_process_group(backend="nccl")
         device_rank = get_rank()
-
         device = f"cuda:{device_rank}"
         torch.set_default_device(device=device)
         torch.cuda.set_device(device=device)
-        init_process_group(backend="nccl")
         return device
 
     except (AssertionError, ValueError) as exc:
