@@ -48,6 +48,7 @@ def _get_config() -> Config:
     config.data_config.batch_size = BATCH_SIZE
     config.data_config.seq_length = SEQ_LENGTH
 
+    config.gpt_config.autocast_dtype = "fp16"
     config.training_config.lr = LR
     config.training_config.num_accumulation_steps = NUM_ACCUMULATION_STEPS
     config.training_config.optimizer = OPTIMIZER
