@@ -213,11 +213,6 @@ class SimpleTrainer:
             if self._is_cuda:
                 torch.cuda.synchronize()
 
-            print()
-            print("loss_est", loss_est)
-            print()
-            print()
-
             t_last = _update_logging_progress()
 
         t_final = time.time()

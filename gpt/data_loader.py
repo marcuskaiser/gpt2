@@ -85,7 +85,7 @@ class SimpleDataLoader:
         self._offset += self.eff_batch_size
         # TODO! We are truncating part of the data. Can we fix this?
         if self._offset + self.eff_batch_size >= self._data_len:
-            logger.debug(
+            logger.info(
                 "End of epoch %3d: Resetting offset.",
                 self._dataset_cycles,
             )
