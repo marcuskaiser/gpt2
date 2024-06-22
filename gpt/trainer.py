@@ -55,13 +55,14 @@ class NoScaler:
 
 
 class SimpleTrainer:
+    """Basic implementation of a trainer class."""
+
     def __init__(
         self,
         config: TrainingConfig,
         model: nn.Module,
         data_loader: SimpleDataLoader,
     ) -> None:
-        """Basic implementation of a trainer class."""
 
         self.config = config
         assert isinstance(self.config, TrainingConfig)
@@ -151,7 +152,7 @@ class SimpleTrainer:
             logger.info(
                 train_logging_str,
                 i_step,
-                loss_est,
+                float(loss_est),
                 norm,
                 t_diff,
                 total_batch_size / t_diff,
@@ -170,7 +171,7 @@ class SimpleTrainer:
         for i_step in range(num_train_steps):
 
             # Gradient accumulation:
-            loss_est = torch.zeros(1)
+            loss_est: torch.Tensor = torch.zeros(1)
             for _ in range(self.num_accumulation_steps):
                 x, y = self.data_loader.get_next_training_batch()
 
@@ -189,13 +190,13 @@ class SimpleTrainer:
                 scaler.scale(loss).backward()
 
             if self._ddp:
-                loss_est = all_reduce(loss_est, op=ReduceOp.AVG)
+                loss_est = all_reduce(tensor=loss_est, op=ReduceOp.AVG)
 
             # unscales gradients inplace:
             scaler.unscale_(self.optimizer)
 
             # clip norms:
-            norm = nn.utils.clip_grad_norm_(
+            norm: torch.Tensor = nn.utils.clip_grad_norm_(
                 parameters=self.model.parameters(),
                 max_norm=1.0,
             )

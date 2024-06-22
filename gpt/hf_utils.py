@@ -48,6 +48,7 @@ def tokenize_string_dataset(
     tokenizer: PreTrainedTokenizer = get_hf_tokenizer(),
     device: str = DEFAULT_DEVICE_TYPE,
 ) -> torch.Tensor:
+    """Tokenize a string into a torch.Tensor of tokens."""
 
     # TODO! We do not handle BOS/EOS tokens here!
     input_ids = tokenizer(text, return_tensors="pt")["input_ids"]
@@ -67,6 +68,7 @@ def tokenize_file_from_disk(
     tokenizer: PreTrainedTokenizer = get_hf_tokenizer(),
     device: str = DEFAULT_DEVICE_TYPE,
 ) -> torch.Tensor:
+    """Tokenize a text file from disk into a torch.Tensor of tokens."""
 
     with open(file_path, "r", encoding="utf-8") as fp:
         text = fp.read()
