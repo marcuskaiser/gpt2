@@ -96,6 +96,12 @@ class SimpleTrainer:
         self.optimizer: torch.optim.Optimizer
         self._reset_optimizer()
 
+        logger.info(
+            "Instantiated %s with optimizer=%s",
+            type(self),
+            type(self.optimizer),
+        )
+
     def _reset_optimizer(self) -> None:
         self.optimizer = get_optimizer(
             optimizer=self.config.optimizer,

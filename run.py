@@ -6,7 +6,12 @@ import sys
 
 import torch
 from torch import nn
-from torch.distributed import init_process_group, destroy_process_group
+from torch.distributed import (
+    init_process_group,
+    destroy_process_group,
+    get_rank,
+    get_world_size,
+)
 from torch.nn.parallel import DistributedDataParallel
 from transformers.tokenization_utils import PreTrainedTokenizer
 
@@ -28,14 +33,18 @@ LR = 6e-4
 SEQ_LENGTH = 1024
 
 
-IS_DDP_RUN = "RANK" in os.environ
-DEVICE_RANK = int(os.environ.get("RANK", default=0))
-WORLD_SIZE = int(os.environ.get("WORLD_SIZE", default=1))
-
-if IS_DDP_RUN:
+try:
+    IS_DDP_RUN = True
+    DEVICE_RANK = get_rank()
+    WORLD_SIZE = get_world_size()
     assert torch.cuda.is_available()
     torch.cuda.set_device(device=f"cuda:{DEVICE_RANK}")
     init_process_group(backend="nccl")
+
+except Exception as exc:
+    IS_DDP_RUN = False
+    DEVICE_RANK = 0
+    WORLD_SIZE = 1
 
 if DEFAULT_DEVICE_TYPE == "cuda":
     NUM_TRAIN_STEPS = 100
