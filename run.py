@@ -1,21 +1,18 @@
 """Test run loading the model"""
 
 import logging
+import os
 import sys
 from typing import Any
 
 import torch
 from gpt.config import Config
 from gpt.data_loader import SimpleDataLoader
+from gpt.distributed import teardown_ddp
 from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
 from gpt.models.gpt2 import GPT
 from gpt.trainer import SimpleTrainer
-from gpt.utils import (
-    DEFAULT_DEVICE_TYPE,
-    empty_cache,
-    set_seed,
-)
-from gpt.distributed import teardown_ddp
+from gpt.utils import DEFAULT_DEVICE_TYPE, empty_cache, set_seed
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel
 
@@ -26,18 +23,21 @@ TRAIN = True
 COMPILE_MODEL = False
 
 LR = 6e-4
-SEQ_LENGTH = 1024
 
 
 if DEFAULT_DEVICE_TYPE == "cuda":
-    NUM_TRAIN_STEPS = 100
+    SEQ_LENGTH = 1024
+
+    NUM_TRAIN_STEPS = 10
     NUM_ACCUMULATION_STEPS = 16
     BATCH_SIZE = 12
     OPTIMIZER = "adamw8bit"
     AUTOCAST_DTYPE = "fp16"
 else:
+    SEQ_LENGTH = 512
+
     NUM_TRAIN_STEPS = 5
-    NUM_ACCUMULATION_STEPS = 4
+    NUM_ACCUMULATION_STEPS = 2
     BATCH_SIZE = 1
     OPTIMIZER = "adamw"
     AUTOCAST_DTYPE = "bf16"
@@ -145,6 +145,31 @@ def _eval(
         logger.info(">> %s", output_message)
 
 
+def _profile(
+    func: callable,
+    func_kwargs: dict,
+    row_limit: int = 10,
+    sort_by: str | None = None,
+) -> Any:
+
+    # if DEFAULT_DEVICE_TYPE != "mps":
+    #     with torch.mps.profiler.profile as prof_mps:
+    #         out = func(**func_kwargs)
+    with torch.profiler.profile(profile_memory=True) as prof:
+        out = func(**func_kwargs)
+
+    if sort_by is None:
+        sort_by = "self_cpu_time_total"
+        if DEFAULT_DEVICE_TYPE == "cuda":
+            sort_by = "self_cuda_time_total"
+
+    logger.info(
+        "Profiler results:\n%s",
+        prof.key_averages().table(sort_by=sort_by, row_limit=row_limit),
+    )
+    return out
+
+
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
@@ -162,16 +187,14 @@ if __name__ == "__main__":
     set_seed(seed=0)
 
     config = _get_config()
-
     tokenizer = get_hf_tokenizer()
-
     model = _load_model(config=config)
 
     _eval(config=config, model=model, tokenizer=tokenizer)
     if TRAIN:
-        _train(
-            config=config,
-            model=model,
+        _profile(
+            func=_train,
+            func_kwargs={"config": config, "model": model},
         )
         _eval(config=config, model=model, tokenizer=tokenizer)
 
