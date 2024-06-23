@@ -209,7 +209,7 @@ if __name__ == "__main__":
         _eval(config=config, model=model, tokenizer=tokenizer)
 
     save_model(model=model, filename="model.safetensors")
-    model = load_model(model=GPT, filename="model.safetensors")
+    model = load_model(model=model, filename="model.safetensors")
 
     if config.ddp_config.is_ddp_run:
         teardown_ddp()
