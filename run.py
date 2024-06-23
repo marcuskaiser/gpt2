@@ -131,18 +131,22 @@ def _eval(
 
     if not config.ddp_config.is_ddp_run:
 
-        tokens = tokenizer(
-            "Hi, my",
-            return_tensors="pt",
-        )
-        x_eval = tokens["input_ids"].to(DEFAULT_DEVICE_TYPE)
+        try:
 
-        model.eval()
-        output_tokens = model.generate(x_eval, max_new_tokens=30)
-        logger.info(">> %s", output_tokens)
-        output_message = tokenizer.decode(token_ids=output_tokens[0])
-        output_message = output_message.replace("\n", "\\n")
-        logger.info(">> %s", output_message)
+            tokens = tokenizer(
+                "Hi, my",
+                return_tensors="pt",
+            )
+            x_eval = tokens["input_ids"].to(DEFAULT_DEVICE_TYPE)
+
+            model.eval()
+            output_tokens = model.generate(x_eval, max_new_tokens=30)
+            logger.info(">> %s", output_tokens)
+            output_message = tokenizer.decode(token_ids=output_tokens[0])
+            output_message = output_message.replace("\n", "\\n")
+            logger.info(">> %s", output_message)
+        except Exception as exc:
+            logger.info("ERROR %s", exc)
 
 
 def _profile(
@@ -162,11 +166,13 @@ def _profile(
         sort_by = "self_cpu_time_total"
         if DEFAULT_DEVICE_TYPE == "cuda":
             sort_by = "self_cuda_time_total"
-
-    logger.info(
-        "Profiler results:\n%s",
-        prof.key_averages().table(sort_by=sort_by, row_limit=row_limit),
-    )
+    try:
+        logger.info(
+            "Profiler results:\n%s",
+            prof.key_averages().table(sort_by=sort_by, row_limit=row_limit),
+        )
+    except Exception as exc:
+        logger.info("ERROR %s", exc)
     return out
 
 

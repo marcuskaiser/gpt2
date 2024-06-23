@@ -32,7 +32,6 @@ class SimpleDataLoader:
         self.device_rank = self.config.ddp_config.device_rank
         self.world_size = self.config.ddp_config.world_size
 
-        # TODO! Add offset for multiple cuda devices!
         self.eff_batch_size_per_device = self.batch_size * self.seq_length
         assert self.eff_batch_size_per_device > 0
         self.eff_batch_size = self.eff_batch_size_per_device * self.world_size

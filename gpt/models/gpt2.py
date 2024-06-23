@@ -18,7 +18,7 @@ from gpt.utils import copy_model_weights
 logger = logging.getLogger(__name__)
 
 
-# TODO! Model initialization: Are the default initialization ranges ok?
+# TODO! Model weight initialization: Are the default initialization ranges ok?
 
 
 class CausalSelfAttention(nn.Module):
@@ -125,7 +125,6 @@ class GPT(nn.Module):
         super().__init__()
         self.config = config
 
-        # TODO! Weight initialization
         self.transformer = nn.ModuleDict(
             modules={
                 "wte": nn.Embedding(

@@ -68,12 +68,12 @@ def empty_cache() -> None:
         torch.mps.empty_cache()
 
 
-def set_seed(seed: int):
+def set_seed(seed: int) -> None:
     """Set random seed."""
 
-    torch.manual_seed(seed)
+    torch.manual_seed(seed=seed)
     for i, default_generator in enumerate(torch.cuda.default_generators):
-        default_generator.manual_seed(seed + i)
+        default_generator.manual_seed(seed=seed + i)
 
 
 def copy_model_weights(
@@ -100,9 +100,13 @@ def copy_model_weights(
     for key, val_input in input_model_state_dict.items():
         if key not in target_model_state_dict:
             continue
-        if target_model_state_dict[key].shape not in (
-            val_input.shape,
-            val_input.T.shape,
+
+        if (target_model_state_dict[key].ndim < 2) or (
+            target_model_state_dict[key].shape
+            not in (
+                val_input.shape,
+                val_input.transpose(0, 1).shape,
+            )
         ):
             return False
 
@@ -112,7 +116,7 @@ def copy_model_weights(
         if (target_model_state_dict[key].shape != val_input.shape) or any(
             key.endswith(expr) for expr in transpose_keys
         ):
-            val_input = val_input.T
+            val_input = val_input.transpose(0, 1)
         with torch.no_grad():
             target_model_state_dict[key].copy_(val_input)
 
@@ -129,8 +133,8 @@ def _check_model_copied(
         value_target = input_model_state_dict[key]
         if value_target.shape == value_input.shape:
             pass
-        elif value_target.shape == value_input.T.shape:
-            value_input = value_input.T
+        elif value_target.shape == value_input.transpose(0, 1).shape:
+            value_input = value_input.transpose(0, 1)
         else:
             assert False, (
                 f"Non-compatible shapes. Got {key}: "

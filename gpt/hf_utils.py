@@ -50,7 +50,7 @@ def tokenize_string_dataset(
 ) -> torch.Tensor:
     """Tokenize a string into a torch.Tensor of tokens."""
 
-    # TODO! We do not handle BOS/EOS tokens here!
+    # TODO! We do not handle BOS/EOS tokens here! Not needed for GPT2...
     input_ids = tokenizer(text, return_tensors="pt")["input_ids"]
     input_ids = input_ids.to(device)
 

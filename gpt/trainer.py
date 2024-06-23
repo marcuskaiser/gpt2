@@ -133,7 +133,6 @@ class SimpleTrainer:
         """Training routine. Train for num_train_steps steps."""
         self.model.train()
 
-        # TODO! Random seed
         # TODO! Learning rate scheduler
         # TODO! Weight decay
         # TODO! Validation loss
