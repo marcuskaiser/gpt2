@@ -1,7 +1,6 @@
 """Test run loading the model"""
 
 import logging
-import os
 import sys
 from typing import Any
 
@@ -13,6 +12,7 @@ from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
 from gpt.models.gpt2 import GPT
 from gpt.trainer import SimpleTrainer
 from gpt.utils import DEFAULT_DEVICE_TYPE, empty_cache, set_seed
+from safetensors.torch import load_model, save_model
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel
 
@@ -26,6 +26,10 @@ LR = 6e-4
 
 
 if DEFAULT_DEVICE_TYPE == "cuda":
+    torch.backends.cuda.enable_flash_sdp(enabled=True)
+    torch.backends.cuda.enable_mem_efficient_sdp(enabled=False)
+    torch.backends.cuda.enable_math_sdp(enabled=False)
+
     SEQ_LENGTH = 1024
 
     NUM_TRAIN_STEPS = 10
@@ -203,6 +207,9 @@ if __name__ == "__main__":
             func_kwargs={"config": config, "model": model},
         )
         _eval(config=config, model=model, tokenizer=tokenizer)
+
+    save_model(model=model, filename="model.safetensors")
+    model = load_model(model=GPT, filename="model.safetensors")
 
     if config.ddp_config.is_ddp_run:
         teardown_ddp()
