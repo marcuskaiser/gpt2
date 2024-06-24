@@ -98,15 +98,14 @@ def copy_model_weights(
     assert len(set_diff) == 0, set_diff
 
     for key, val_input in input_model_state_dict.items():
-        if key not in target_model_state_dict:
+        if (key not in target_model_state_dict) or (
+            target_model_state_dict[key].ndim < 2
+        ):
             continue
 
-        if (target_model_state_dict[key].ndim < 2) or (
-            target_model_state_dict[key].shape
-            not in (
-                val_input.shape,
-                val_input.transpose(0, 1).shape,
-            )
+        if target_model_state_dict[key].shape not in (
+            val_input.shape,
+            val_input.transpose(0, 1).shape,
         ):
             return False
 

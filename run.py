@@ -131,16 +131,10 @@ def _eval(
     tokenizer: Any,
 ) -> None:
 
-    print("config.ddp_config.is_ddp_run", config.ddp_config.is_ddp_run)
-
     if not config.ddp_config.is_ddp_run:
 
         try:
-
-            tokens = tokenizer(
-                "Hi, my",
-                return_tensors="pt",
-            )
+            tokens = tokenizer("Hi, my", return_tensors="pt")
             x_eval = tokens["input_ids"].to(DEFAULT_DEVICE_TYPE)
 
             model.eval()
