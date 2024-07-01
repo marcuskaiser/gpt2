@@ -2,7 +2,6 @@ import logging
 from typing import Any
 
 import torch
-from gpt.distributed import WORLD_SIZE, DEVICE_RANK, IS_DDP_RUN
 from gpt.utils import (
     DEFAULT_DEVICE_TYPE,
     TYPE_DEVICE_TYPE,
@@ -66,13 +65,6 @@ class DataConfig(BaseModel):
     seq_length: int = 1024
 
 
-class DDPConfig(BaseModel):
-    """DDP Config."""
-
-    is_ddp_run: bool = IS_DDP_RUN
-    device_rank: int = DEVICE_RANK
-    world_size: int = WORLD_SIZE
-
 
 class Config(BaseModel):
     """Config."""
@@ -80,4 +72,3 @@ class Config(BaseModel):
     gpt_config: GPTConfig = GPTConfig()
     training_config: TrainingConfig = TrainingConfig()
     data_config: DataConfig = DataConfig()
-    ddp_config: DDPConfig = DDPConfig()

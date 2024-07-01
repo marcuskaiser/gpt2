@@ -3,6 +3,7 @@ import logging
 import torch
 
 from gpt.config import Config
+from gpt.distributed import DEVICE_RANK, WORLD_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -29,15 +30,12 @@ class SimpleDataLoader:
         self.seq_length = self.config.data_config.seq_length
         assert self.seq_length > 0
 
-        self.device_rank = self.config.ddp_config.device_rank
-        self.world_size = self.config.ddp_config.world_size
-
         self.eff_batch_size_per_device = self.batch_size * self.seq_length
         assert self.eff_batch_size_per_device > 0
-        self.eff_batch_size = self.eff_batch_size_per_device * self.world_size
+        self.eff_batch_size = self.eff_batch_size_per_device * WORLD_SIZE
         assert self.eff_batch_size > 0
 
-        self._offset = self.eff_batch_size_per_device * self.device_rank
+        self._offset = self.eff_batch_size_per_device * DEVICE_RANK
         self._batch_counter = 0
         self._dataset_cycles = 0
 

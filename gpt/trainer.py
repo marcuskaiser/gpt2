@@ -110,6 +110,14 @@ class SimpleTrainer:
 
         self.optimizer.zero_grad()
 
+    def _get_scaler(self) -> GradScaler | NoScaler:
+        if (
+            self.config.training_config.use_scaler
+            and self.config.gpt_config.device == "cuda"
+        ):
+            return GradScaler()
+        return NoScaler()
+
     def _model_forward_loss(
         self,
         x: torch.Tensor,
@@ -127,10 +135,13 @@ class SimpleTrainer:
         return loss
 
     def train_model(
-        self,
-        num_train_steps: int = 50,
+        self, num_train_steps: int = 50, reset_optmizer: bool = True
     ) -> SimpleTrainer:
         """Training routine. Train for num_train_steps steps."""
+
+        if reset_optmizer or self.optimizer is None:
+            self._reset_optimizer()
+
         self.model.train()
 
         # TODO! Learning rate scheduler
@@ -142,6 +153,7 @@ class SimpleTrainer:
                 f"step: %{len(str(num_train_steps))}d",
                 "loss: %.3e",
                 "norm: %.3e",
+                "learning_rate: %.3e",
                 "time_last_step: %.3es",
                 "tokens/s: %.2f",
             ]
@@ -155,6 +167,7 @@ class SimpleTrainer:
                 i_step,
                 float(loss_est),
                 norm,
+                self.lr,
                 t_diff,
                 total_batch_size / t_diff,
             )
@@ -164,12 +177,7 @@ class SimpleTrainer:
             self.num_accumulation_steps * self.data_loader.eff_batch_size
         )
 
-        scaler = NoScaler()
-        if (
-            self.config.training_config.use_scaler
-            and self.config.gpt_config.device == "cuda"
-        ):
-            scaler = GradScaler()
+        scaler = self._get_scaler()
 
         t_init = t_last = time.time()
         for i_step in range(num_train_steps):

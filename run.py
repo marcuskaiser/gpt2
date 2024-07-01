@@ -7,7 +7,7 @@ from typing import Any
 import torch
 from gpt.config import Config
 from gpt.data_loader import SimpleDataLoader
-from gpt.distributed import teardown_ddp
+from gpt.distributed import teardown_ddp, IS_DDP_RUN, DEVICE_RANK
 from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
 from gpt.models.gpt2 import GPT
 from gpt.trainer import SimpleTrainer
@@ -16,34 +16,38 @@ from safetensors.torch import load_model, save_model
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel
 
+
 logger = logging.getLogger(__name__)
 
 RANDOM = False
 TRAIN = True
 COMPILE_MODEL = False
+PROFILE = False
 
 LR = 6e-4
 
+SEQ_LENGTH = 512
+NUM_TRAIN_STEPS = 5
+NUM_ACCUMULATION_STEPS = 2
+BATCH_SIZE = 1
+OPTIMIZER = "adamw"
+AUTOCAST_DTYPE = "fp16"
 
 if DEFAULT_DEVICE_TYPE == "cuda":
     torch.backends.cuda.enable_flash_sdp(enabled=True)
     torch.backends.cuda.enable_mem_efficient_sdp(enabled=False)
     torch.backends.cuda.enable_math_sdp(enabled=False)
 
-    SEQ_LENGTH = 1024
+    if torch.cuda.is_bf16_supported():
+        AUTOCAST_DTYPE = "bf16"
 
+    SEQ_LENGTH = 1024
     NUM_TRAIN_STEPS = 10
     NUM_ACCUMULATION_STEPS = 16
     BATCH_SIZE = 12
     OPTIMIZER = "adamw8bit"
-    AUTOCAST_DTYPE = "fp16"
-else:
-    SEQ_LENGTH = 512
 
-    NUM_TRAIN_STEPS = 5
-    NUM_ACCUMULATION_STEPS = 2
-    BATCH_SIZE = 1
-    OPTIMIZER = "adamw"
+elif DEFAULT_DEVICE_TYPE == "mps":
     AUTOCAST_DTYPE = "bf16"
 
 
@@ -86,10 +90,10 @@ def _load_model(
     logger.info({p.device for p in model.parameters()})
     logger.info(model)
 
-    if config.ddp_config.is_ddp_run:
+    if IS_DDP_RUN:
         model = DistributedDataParallel(
             module=model,
-            device_ids=[config.ddp_config.device_rank],
+            device_ids=[DEVICE_RANK],
         )
         model.config = config.gpt_config
 
@@ -131,7 +135,7 @@ def _eval(
     tokenizer: Any,
 ) -> None:
 
-    if not config.ddp_config.is_ddp_run:
+    if not IS_DDP_RUN:
 
         try:
             tokens = tokenizer("Hi, my", return_tensors="pt")
@@ -195,15 +199,27 @@ if __name__ == "__main__":
     model = _load_model(config=config)
 
     _eval(config=config, model=model, tokenizer=tokenizer)
+
     if TRAIN:
-        _profile(
-            func=_train,
-            func_kwargs={"config": config, "model": model},
-        )
+        if PROFILE:
+            _profile(
+                func=_train,
+                func_kwargs={"config": config, "model": model},
+            )
+        else:
+            _train(
+                **{"config": config, "model": model},
+            )
+
         _eval(config=config, model=model, tokenizer=tokenizer)
 
     save_model(model=model, filename="model.safetensors")
-    model = load_model(model=model, filename="model.safetensors")
 
-    if config.ddp_config.is_ddp_run:
+    del model
+    model = GPT(config.gpt_config)
+    load_model(model=model, filename="model.safetensors")
+
+    _eval(config=config, model=model, tokenizer=tokenizer)
+
+    if IS_DDP_RUN:
         teardown_ddp()
