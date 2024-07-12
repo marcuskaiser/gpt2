@@ -5,13 +5,13 @@ import sys
 from typing import Any
 
 import torch
-from gpt.config import Config
-from gpt.data_loader import SimpleDataLoader
-from gpt.distributed import teardown_ddp, IS_DDP_RUN, DEVICE_RANK
-from gpt.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
-from gpt.models.gpt2 import GPT
-from gpt.trainer import SimpleTrainer
-from gpt.utils import DEFAULT_DEVICE_TYPE, empty_cache, set_seed
+from gpt2.config import Config
+from gpt2.data_loader import SimpleDataLoader
+from gpt2.distributed import teardown_ddp, IS_DDP_RUN, DEVICE_RANK
+from gpt2.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
+from gpt2.models.gpt2 import GPT
+from gpt2.trainer import SimpleTrainer
+from gpt2.utils import DEFAULT_DEVICE_TYPE, empty_cache, set_seed
 from safetensors.torch import load_model, save_model
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel

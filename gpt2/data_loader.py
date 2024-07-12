@@ -1,9 +1,11 @@
+"""Simple Data Loader class"""
+
 import logging
 
 import torch
 
-from gpt.config import Config
-from gpt.distributed import DEVICE_RANK, WORLD_SIZE
+from gpt2.config import Config
+from gpt2.distributed import DEVICE_RANK, WORLD_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +13,10 @@ logger = logging.getLogger(__name__)
 # TODO! Add train/test data splitting.
 # TODO! Packing? Not needed for single text string, but TBC.
 class SimpleDataLoader:
+    """SimpleDataLoader."""
+
+    # pylint: disable=too-many-instance-attributes, too-few-public-methods
+
     def __init__(
         self,
         config: Config,

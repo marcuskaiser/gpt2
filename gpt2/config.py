@@ -1,16 +1,18 @@
+"""Config classes."""
+
 import logging
 from typing import Any
 
 import torch
-from gpt.utils import (
+from pydantic import BaseModel
+
+from gpt2.utils import (
     DEFAULT_DEVICE_TYPE,
     TYPE_DEVICE_TYPE,
     TYPE_DTYPE,
     TYPE_OPTIMIZER,
 )
 
-
-from pydantic import BaseModel
 
 logger = logging.getLogger(name=__name__)
 
@@ -63,7 +65,6 @@ class DataConfig(BaseModel):
 
     batch_size: int = 1
     seq_length: int = 1024
-
 
 
 class Config(BaseModel):

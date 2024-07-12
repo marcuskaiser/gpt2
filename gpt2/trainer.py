@@ -11,9 +11,10 @@ from torch.cuda.amp import GradScaler
 from torch.distributed import ReduceOp, all_reduce
 from torch.nn.parallel import DistributedDataParallel
 
-from gpt.config import Config
-from gpt.data_loader import SimpleDataLoader
-from gpt.utils import DTYPE_MAP, get_optimizer
+from gpt2.config import Config
+from gpt2.data_loader import SimpleDataLoader
+from gpt2.utils import DTYPE_MAP, get_optimizer
+
 
 logger = logging.getLogger(name=__name__)
 
@@ -49,6 +50,10 @@ class NoScaler:
 
 class SimpleTrainer:
     """Basic implementation of a trainer class."""
+
+    # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-few-public-methods
+    # pylint: disable=too-many-locals
 
     def __init__(
         self,
@@ -135,18 +140,20 @@ class SimpleTrainer:
         return loss
 
     def train_model(
-        self, num_train_steps: int = 50, reset_optmizer: bool = True
+        self,
+        num_train_steps: int = 50,
+        reset_optmizer: bool = True,
     ) -> SimpleTrainer:
         """Training routine. Train for num_train_steps steps."""
+
+        # TODO! Learning rate scheduler
+        # TODO! Weight decay
+        # TODO! Validation loss
 
         if reset_optmizer or self.optimizer is None:
             self._reset_optimizer()
 
         self.model.train()
-
-        # TODO! Learning rate scheduler
-        # TODO! Weight decay
-        # TODO! Validation loss
 
         train_logging_str = ", ".join(
             [

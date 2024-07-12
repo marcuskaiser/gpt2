@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "gpt2"
+version = "0.1.0"
+description = ""
+authors = ["Marcus Kaiser <37778805+marcuskaiser@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pydantic = "^2.8.2"
+numpy = ">=1.17,<2.0"
+torch = "^2.3.1"
+accelerate = "^0.32.1"
+bitsandbytes = "^0.42.0"
+datasets = "^2.20.0"
+transformers = "^4.42.4"
+safetensors = "^0.4.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

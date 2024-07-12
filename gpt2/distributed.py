@@ -1,3 +1,5 @@
+"""Tooling for torch.distributed runs."""
+
 import logging
 
 import torch
@@ -7,7 +9,8 @@ from torch.distributed import (
     get_world_size,
     init_process_group,
 )
-from gpt.utils import DEFAULT_DEVICE_TYPE
+
+from gpt2.utils import DEFAULT_DEVICE_TYPE
 
 logger = logging.getLogger(__name__)
 

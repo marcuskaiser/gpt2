@@ -10,36 +10,35 @@ from transformers import (
     PreTrainedTokenizer,
 )
 
-from gpt.utils import DEFAULT_DEVICE_TYPE
+from gpt2.utils import DEFAULT_DEVICE_TYPE
 
 logger = logging.getLogger(__name__)
 
 
 def get_hf_tokenizer(
-    model_id: str = "gpt2",
+    model_id: str = "openai-community/gpt2",
 ) -> PreTrainedTokenizer:
     """Get GPT2-Tokenizer."""
+    logger.info("Loading HF tokenizer: `%s`", model_id)
     tokenizer = AutoTokenizer.from_pretrained(
         pretrained_model_name_or_path=model_id,
     )
-
-    logger.info("Loaded tokenizer: `%s`", model_id)
     return tokenizer
 
 
 def get_hf_model(
-    model_id: str = "gpt2",
+    model_id: str = "openai-community/gpt2",
     device_map: str = DEFAULT_DEVICE_TYPE,
     **kwargs,
 ) -> PreTrainedModel:
     """Get GPT2-Model."""
+    logger.info("Loading HF model: `%s`", model_id)
     model = GPT2LMHeadModel.from_pretrained(
         pretrained_model_name_or_path=model_id,
         device_map=device_map,
         **kwargs,
     )
 
-    logger.info("Loaded model: `%s`", model_id)
     return model
 
 

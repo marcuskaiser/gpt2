@@ -12,11 +12,11 @@ import torch.nn.functional as F
 from torch import nn
 from transformers.modeling_utils import PreTrainedModel
 
-from gpt.config import GPTConfig
-from gpt.utils import copy_model_weights
+from gpt2.config import GPTConfig
+from gpt2.hf_utils import get_hf_model
+from gpt2.utils import copy_model_weights
 
 logger = logging.getLogger(__name__)
-
 
 # TODO! Model weight initialization: Are the default initialization ranges ok?
 
@@ -220,7 +220,6 @@ class GPT(nn.Module):
         config: GPTConfig,
     ) -> GPT:
         """Naive method to load model from pretrained."""
-        from gpt.hf_utils import get_hf_model
 
         model = GPT(config=config)
         model_hf: PreTrainedModel = get_hf_model()
