@@ -13,20 +13,24 @@ logger = logging.getLogger(__name__)
 
 
 class DeviceType(str, Enum):
+    """Enum for device type."""
+
     CPU = "cpu"
     CUDA = "cuda"
     MPS = "mps"
 
 
 class TorchDtype(str, Enum):
+    """Enum for torch dtypes."""
     FP32 = "fp32"
     FP16 = "FP16"
     BF16 = "bf16"
 
 
 class OptimizerType(str, Enum):
-    AdamW = "adamw"
-    AdamW8bit = "adamw8bit"
+    """Enum for optimizer."""
+    ADAMW = "adamw"
+    ADAMW_8BIT = "adamw8bit"
 
 
 def get_device_type() -> DeviceType:
@@ -52,22 +56,21 @@ DTYPE_MAP: dict[TorchDtype, torch.dtype] = {
 
 
 def get_optimizer(
-    optimizer: OptimizerType = OptimizerType.AdamW,
+    optimizer: OptimizerType,
     use_zero: bool = False,
     **kwargs,
 ) -> torch.optim.Optimizer:
     """Get the optimizer."""
 
-    if optimizer == OptimizerType.AdamW:
+    if optimizer == OptimizerType.ADAMW:
         op_class = AdamW
-    else:
+    elif optimizer == OptimizerType.ADAMW_8BIT:
         op_class = AdamW8bit
+    else:
+        raise ValueError(f"Unknown value: optimizer=`{optimizer}`!")
 
     if use_zero:
-        return ZeroRedundancyOptimizer(
-            optimizer_class=op_class,
-            **kwargs,
-        )
+        return ZeroRedundancyOptimizer(optimizer_class=op_class, **kwargs)
     return op_class(**kwargs)
 
 

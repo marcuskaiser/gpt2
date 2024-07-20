@@ -111,9 +111,9 @@ class Config(BaseModel):
             self.training_config.use_zero = is_cuda
 
         if self.training_config.optimizer is None:
-            self.training_config.optimizer = OptimizerType.AdamW
+            self.training_config.optimizer = OptimizerType.ADAMW
             if is_cuda:
-                self.training_config.optimizer = OptimizerType.AdamW8bit
+                self.training_config.optimizer = OptimizerType.ADAMW_8BIT
             logger.info(
                 "Optimizer: No default. Setting %s",
                 self.training_config.optimizer,
