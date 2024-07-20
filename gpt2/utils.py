@@ -22,6 +22,7 @@ class DeviceType(str, Enum):
 
 class TorchDtype(str, Enum):
     """Enum for torch dtypes."""
+
     FP32 = "fp32"
     FP16 = "FP16"
     BF16 = "bf16"
@@ -29,6 +30,7 @@ class TorchDtype(str, Enum):
 
 class OptimizerType(str, Enum):
     """Enum for optimizer."""
+
     ADAMW = "adamw"
     ADAMW_8BIT = "adamw8bit"
 
@@ -77,10 +79,12 @@ def get_optimizer(
 def empty_cache() -> None:
     """Empty cache."""
     if DEFAULT_DEVICE_TYPE == "cuda":
-        logger.info("Requested cuda.empty_cache")
+        logger.info("Requested cuda.empty_cache()")
+        torch.cuda.empty_cache()
         torch.cuda.empty_cache()
     elif DEFAULT_DEVICE_TYPE == "mps":
-        logger.info("Requested mps.empty_cache")
+        logger.info("Requested mps.empty_cache()")
+        torch.mps.empty_cache()
         torch.mps.empty_cache()
 
 
