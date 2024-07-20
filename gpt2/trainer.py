@@ -64,6 +64,7 @@ class SimpleTrainer:
 
         self.config = config
         assert isinstance(self.config, Config), type(self.config)
+        config.resolve()
 
         self.model = model
         assert isinstance(self.model, nn.Module)

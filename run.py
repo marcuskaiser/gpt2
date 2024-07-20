@@ -7,7 +7,7 @@ from typing import Any
 import torch
 from gpt2.config import Config
 from gpt2.data_loader import SimpleDataLoader
-from gpt2.distributed import teardown_ddp, IS_DDP_RUN, DEVICE_RANK
+from gpt2.distributed import DDPManager
 from gpt2.hf_utils import get_hf_tokenizer, tokenize_file_from_disk
 from gpt2.models.gpt2 import GPT
 from gpt2.trainer import SimpleTrainer
@@ -26,20 +26,16 @@ PROFILE = False
 
 LR = 6e-4
 
-SEQ_LENGTH = 512
-NUM_TRAIN_STEPS = 5
-NUM_ACCUMULATION_STEPS = 8
-BATCH_SIZE = 1
-
 if DEFAULT_DEVICE_TYPE == "cuda":
-    torch.backends.cuda.enable_flash_sdp(enabled=True)
-    torch.backends.cuda.enable_mem_efficient_sdp(enabled=False)
-    torch.backends.cuda.enable_math_sdp(enabled=False)
-
     SEQ_LENGTH = 1024
     NUM_TRAIN_STEPS = 10
     NUM_ACCUMULATION_STEPS = 16
     BATCH_SIZE = 12
+else:
+    SEQ_LENGTH = 512
+    NUM_TRAIN_STEPS = 5
+    NUM_ACCUMULATION_STEPS = 8
+    BATCH_SIZE = 1
 
 
 def _get_config() -> Config:
@@ -50,7 +46,6 @@ def _get_config() -> Config:
     config.data_config.seq_length = SEQ_LENGTH
     config.training_config.lr = LR
     config.training_config.num_accumulation_steps = NUM_ACCUMULATION_STEPS
-
     config.resolve()
 
     logger.info("config=%s", config.model_dump_json())
@@ -59,6 +54,7 @@ def _get_config() -> Config:
 
 def _load_model(
     config: Config,
+    ddp_manager: DDPManager,
 ) -> nn.Module:
     """Load model."""
 
@@ -71,10 +67,10 @@ def _load_model(
     logger.info({p.device for p in model.parameters()})
     logger.info(model)
 
-    if IS_DDP_RUN:
+    if ddp_manager.is_ddp_run:
         model = DistributedDataParallel(
             module=model,
-            device_ids=[DEVICE_RANK],
+            device_ids=[ddp_manager.device_rank],
         )
         model.config = config.gpt_config
 
@@ -91,14 +87,20 @@ def _load_model(
 def _train(
     config: Config,
     model: nn.Module,
+    ddp_manager: DDPManager,
 ) -> None:
     """Train model."""
 
-    tokens: torch.Tensor = tokenize_file_from_disk(
-        file_path="data/input.txt"
+    data: torch.Tensor = tokenize_file_from_disk(
+        file_path="data/input.txt",
     ).to(device=DEFAULT_DEVICE_TYPE)
 
-    data_loader = SimpleDataLoader(config=config, data=tokens)
+    data_loader = SimpleDataLoader(
+        config=config,
+        data=data,
+        world_size=ddp_manager.world_size,
+        device_rank=ddp_manager.device_rank,
+    )
 
     trainer = SimpleTrainer(
         config=config,
@@ -113,9 +115,10 @@ def _train(
 def _eval(
     model: nn.Module,
     tokenizer: Any,
+    ddp_manager: DDPManager,
 ) -> None:
 
-    if not IS_DDP_RUN:
+    if not ddp_manager.is_ddp_run:
 
         try:
             tokens = tokenizer("Hi, my", return_tensors="pt")
@@ -131,36 +134,8 @@ def _eval(
             logger.info("ERROR %s", exc)
 
 
-def _profile(
-    func: callable,
-    func_kwargs: dict,
-    row_limit: int = 10,
-    sort_by: str | None = None,
-) -> Any:
-
-    # if DEFAULT_DEVICE_TYPE != "mps":
-    #     with torch.mps.profiler.profile as prof_mps:
-    #         out = func(**func_kwargs)
-    with torch.profiler.profile(profile_memory=True) as prof:
-        out = func(**func_kwargs)
-
-    if sort_by is None:
-        sort_by = "self_cpu_time_total"
-        if DEFAULT_DEVICE_TYPE == "cuda":
-            sort_by = "self_cuda_time_total"
-    try:
-        logger.info(
-            "Profiler results:\n%s",
-            prof.key_averages().table(sort_by=sort_by, row_limit=row_limit),
-        )
-    except Exception as exc:
-        logger.info("ERROR %s", exc)
-    return out
-
-
 if __name__ == "__main__":
 
-    logging.basicConfig(level=logging.INFO)
     for hdlr in logging.root.handlers[:]:
         logging.root.removeHandler(hdlr=hdlr)
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
@@ -170,36 +145,32 @@ if __name__ == "__main__":
         SEQ_LENGTH * NUM_ACCUMULATION_STEPS * BATCH_SIZE,
     )
 
+    # Torch config:
     torch.set_float32_matmul_precision(precision="high")
+    torch.backends.cuda.enable_flash_sdp(enabled=True)
+    torch.backends.cuda.enable_mem_efficient_sdp(enabled=False)
+    torch.backends.cuda.enable_math_sdp(enabled=False)
     empty_cache()
     set_seed(seed=0)
 
-    config = _get_config()
-    tokenizer = get_hf_tokenizer()
-    model = _load_model(config=config)
+    # loca config, tokenizer and model:
 
-    _eval(model=model, tokenizer=tokenizer)
+    with DDPManager() as ddp_manager:
 
-    if TRAIN:
-        if PROFILE:
-            _profile(
-                func=_train,
-                func_kwargs={"config": config, "model": model},
-            )
-        else:
-            _train(
-                **{"config": config, "model": model},
-            )
+        config = _get_config()
+        tokenizer = get_hf_tokenizer()
 
-        _eval(model=model, tokenizer=tokenizer)
+        model = _load_model(config=config, ddp_manager=ddp_manager)
+        _eval(model=model, tokenizer=tokenizer, ddp_manager=ddp_manager)
 
-    save_model(model=model, filename="model.safetensors")
+        if TRAIN:
+            _train(config=config, model=model, ddp_manager=ddp_manager)
+            _eval(model=model, tokenizer=tokenizer, ddp_manager=ddp_manager)
 
-    del model
-    model = GPT(config.gpt_config)
-    load_model(model=model, filename="model.safetensors")
+        save_model(model=model, filename="model.safetensors")
 
-    _eval(model=model, tokenizer=tokenizer)
+        del model
+        model = GPT(config.gpt_config)
+        load_model(model=model, filename="model.safetensors")
 
-    if IS_DDP_RUN:
-        teardown_ddp()
+        _eval(model=model, tokenizer=tokenizer, ddp_manager=ddp_manager)

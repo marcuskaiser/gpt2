@@ -5,7 +5,6 @@ import logging
 import torch
 
 from gpt2.config import Config
-from gpt2.distributed import DEVICE_RANK, WORLD_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +20,12 @@ class SimpleDataLoader:
         self,
         config: Config,
         data: torch.Tensor,
+        world_size: int = 1,
+        device_rank: int = 0,
     ) -> None:
         self.config = config
+        assert isinstance(config, Config)
+        config.resolve()
 
         self.data = data
         assert data.ndim == 2
@@ -38,10 +41,10 @@ class SimpleDataLoader:
 
         self.eff_batch_size_per_device = self.batch_size * self.seq_length
         assert self.eff_batch_size_per_device > 0
-        self.eff_batch_size = self.eff_batch_size_per_device * WORLD_SIZE
+        self.eff_batch_size = self.eff_batch_size_per_device * world_size
         assert self.eff_batch_size > 0
 
-        self._offset = self.eff_batch_size_per_device * DEVICE_RANK
+        self._offset = self.eff_batch_size_per_device * device_rank
         self._batch_counter = 0
         self._dataset_cycles = 0
 
