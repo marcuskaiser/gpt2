@@ -28,27 +28,18 @@ LR = 6e-4
 
 SEQ_LENGTH = 512
 NUM_TRAIN_STEPS = 5
-NUM_ACCUMULATION_STEPS = 2
+NUM_ACCUMULATION_STEPS = 8
 BATCH_SIZE = 1
-OPTIMIZER = "adamw"
-AUTOCAST_DTYPE = "fp16"
 
 if DEFAULT_DEVICE_TYPE == "cuda":
     torch.backends.cuda.enable_flash_sdp(enabled=True)
     torch.backends.cuda.enable_mem_efficient_sdp(enabled=False)
     torch.backends.cuda.enable_math_sdp(enabled=False)
 
-    if torch.cuda.is_bf16_supported():
-        AUTOCAST_DTYPE = "bf16"
-
     SEQ_LENGTH = 1024
     NUM_TRAIN_STEPS = 10
     NUM_ACCUMULATION_STEPS = 16
     BATCH_SIZE = 12
-    OPTIMIZER = "adamw8bit"
-
-elif DEFAULT_DEVICE_TYPE == "mps":
-    AUTOCAST_DTYPE = "bf16"
 
 
 def _get_config() -> Config:
@@ -57,17 +48,10 @@ def _get_config() -> Config:
     config = Config()
     config.data_config.batch_size = BATCH_SIZE
     config.data_config.seq_length = SEQ_LENGTH
-
-    # TODO! Auto-infer?
-
-    config.gpt_config.autocast_dtype = AUTOCAST_DTYPE
     config.training_config.lr = LR
     config.training_config.num_accumulation_steps = NUM_ACCUMULATION_STEPS
-    config.training_config.optimizer = OPTIMIZER
-    config.training_config.use_scaler = (
-        config.gpt_config.autocast_dtype == "fp16"
-    )
-    config.training_config.use_zero = DEFAULT_DEVICE_TYPE == "cuda"
+
+    config.resolve()
 
     logger.info("config=%s", config.model_dump_json())
     return config
@@ -77,9 +61,6 @@ def _load_model(
     config: Config,
 ) -> nn.Module:
     """Load model."""
-    model_kwargs: dict[str, str] = {}
-    if DEFAULT_DEVICE_TYPE == "cuda":
-        model_kwargs["autocast_dtype"] = "fp16"
 
     model: nn.Module
     if RANDOM:
@@ -130,7 +111,6 @@ def _train(
 
 
 def _eval(
-    config: Config,
     model: nn.Module,
     tokenizer: Any,
 ) -> None:
@@ -198,7 +178,7 @@ if __name__ == "__main__":
     tokenizer = get_hf_tokenizer()
     model = _load_model(config=config)
 
-    _eval(config=config, model=model, tokenizer=tokenizer)
+    _eval(model=model, tokenizer=tokenizer)
 
     if TRAIN:
         if PROFILE:
@@ -211,7 +191,7 @@ if __name__ == "__main__":
                 **{"config": config, "model": model},
             )
 
-        _eval(config=config, model=model, tokenizer=tokenizer)
+        _eval(model=model, tokenizer=tokenizer)
 
     save_model(model=model, filename="model.safetensors")
 
@@ -219,7 +199,7 @@ if __name__ == "__main__":
     model = GPT(config.gpt_config)
     load_model(model=model, filename="model.safetensors")
 
-    _eval(config=config, model=model, tokenizer=tokenizer)
+    _eval(model=model, tokenizer=tokenizer)
 
     if IS_DDP_RUN:
         teardown_ddp()

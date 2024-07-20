@@ -93,6 +93,8 @@ class SimpleTrainer:
                 self.config.gpt_config.autocast_dtype != "fp16"
             ), "Cannot use autocast_dtype=`fp16` with use_scaler=`False`!"
 
+        self._autocast_dtype = DTYPE_MAP[self.model.config.autocast_dtype]
+
         self.optimizer: torch.optim.Optimizer
         self._reset_optimizer()
 
@@ -133,7 +135,7 @@ class SimpleTrainer:
         else:
             with torch.autocast(
                 device_type=self.model.config.device,
-                dtype=DTYPE_MAP[self.model.config.autocast_dtype],
+                dtype=self._autocast_dtype,
             ):
                 _, loss = self.model(x, y)
 

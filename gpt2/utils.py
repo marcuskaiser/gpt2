@@ -1,7 +1,7 @@
 """Utils for GPT Model"""
 
 import logging
-from typing import Literal, cast
+from enum import Enum
 
 import torch
 from bitsandbytes.optim import AdamW8bit
@@ -11,41 +11,54 @@ from torch.optim import AdamW
 
 logger = logging.getLogger(__name__)
 
-TYPE_DEVICE_TYPE = Literal["cpu", "cuda", "mps"]
-TYPE_DTYPE = Literal["fp32", "fp16", "bf16"]
-TYPE_OPTIMIZER = Literal["adamw", "adamw8bit"]
+
+class DeviceType(str, Enum):
+    CPU = "cpu"
+    CUDA = "cuda"
+    MPS = "mps"
 
 
-def get_device_type() -> TYPE_DEVICE_TYPE:
+class TorchDtype(str, Enum):
+    FP32 = "fp32"
+    FP16 = "FP16"
+    BF16 = "bf16"
+
+
+class OptimizerType(str, Enum):
+    AdamW = "adamw"
+    AdamW8bit = "adamw8bit"
+
+
+def get_device_type() -> DeviceType:
     """Extract device type."""
-    device = "cpu"
+    device = DeviceType.CPU
     if torch.cuda.is_available():
-        device = "cuda"
+        device = DeviceType.CUDA
     elif torch.backends.mps.is_available():
-        device = "mps"
+        device = DeviceType.MPS
 
-    logger.info("Selected TYPE_DEVICE_TYPE=%s", device)
-    return cast(TYPE_DEVICE_TYPE, device)
+    logger.info("Selected DeviceType=%s", device)
+    return device
 
 
 DEFAULT_DEVICE_TYPE = get_device_type()
 
 
-DTYPE_MAP: dict[TYPE_DTYPE, torch.dtype] = {
-    "fp32": torch.float32,
-    "fp16": torch.float16,
-    "bf16": torch.bfloat16,
+DTYPE_MAP: dict[TorchDtype, torch.dtype] = {
+    TorchDtype.FP32: torch.float32,
+    TorchDtype.FP16: torch.float16,
+    TorchDtype.BF16: torch.bfloat16,
 }
 
 
 def get_optimizer(
-    optimizer: TYPE_OPTIMIZER = "adamw",
+    optimizer: OptimizerType = OptimizerType.AdamW,
     use_zero: bool = False,
     **kwargs,
 ) -> torch.optim.Optimizer:
     """Get the optimizer."""
 
-    if optimizer == "adamw":
+    if optimizer == OptimizerType.AdamW:
         op_class = AdamW
     else:
         op_class = AdamW8bit

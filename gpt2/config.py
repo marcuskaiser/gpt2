@@ -8,9 +8,9 @@ from pydantic import BaseModel
 
 from gpt2.utils import (
     DEFAULT_DEVICE_TYPE,
-    TYPE_DEVICE_TYPE,
-    TYPE_DTYPE,
-    TYPE_OPTIMIZER,
+    DeviceType,
+    TorchDtype,
+    OptimizerType,
 )
 
 
@@ -26,8 +26,8 @@ class GPTConfig(BaseModel):
     n_head: int = 12  # Number of heads
     n_embd: int = 768  # Latent dimension
     mlp_factor: int = 4  # multiplicative factor in MLP latent dim.
-    autocast_dtype: TYPE_DTYPE = "bf16"
-    device: TYPE_DEVICE_TYPE = DEFAULT_DEVICE_TYPE
+    autocast_dtype: TorchDtype | None = None
+    device: DeviceType = DEFAULT_DEVICE_TYPE
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -53,11 +53,11 @@ class GPTConfig(BaseModel):
 class TrainingConfig(BaseModel):
     """Training config."""
 
-    optimizer: TYPE_OPTIMIZER = "adamw"
+    optimizer: OptimizerType | None = None
     lr: float = 3e-4
     num_accumulation_steps: int = 1
-    use_scaler: bool = True
-    use_zero: bool = False
+    use_scaler: bool | None = None
+    use_zero: bool | None = None
 
 
 class DataConfig(BaseModel):
@@ -73,3 +73,48 @@ class Config(BaseModel):
     gpt_config: GPTConfig = GPTConfig()
     training_config: TrainingConfig = TrainingConfig()
     data_config: DataConfig = DataConfig()
+
+    def resolve(self) -> None:
+        """Apply top-level logic to resolve None default parameters."""
+
+        is_cuda = self.gpt_config.device == DeviceType.CUDA
+        is_mps = self.gpt_config.device == DeviceType.MPS
+
+        # check gpt config:
+        if self.gpt_config.autocast_dtype is None:
+            self.gpt_config.autocast_dtype = TorchDtype.FP16
+            if (is_cuda and torch.cuda.is_bf16_supported()) or is_mps:
+                self.gpt_config.autocast_dtype = TorchDtype.BF16
+            logger.info(
+                "autocast_dtype: No default. Setting %s",
+                self.gpt_config.autocast_dtype,
+            )
+
+        # check training config:
+        is_bf16 = self.gpt_config.autocast_dtype == TorchDtype.BF16
+        is_fp16 = self.gpt_config.autocast_dtype == TorchDtype.FP16
+
+        if is_bf16:
+            if self.gpt_config.device == DeviceType.CUDA:
+                assert torch.cuda.is_bf16_supported()
+            else:
+                assert self.gpt_config.device != DeviceType.CPU
+
+        if self.training_config.use_scaler is None:
+            self.training_config.use_scaler = False
+            if is_cuda and is_fp16:
+                logger.info("Scaler: No default and fp16: Setting GradScaler.")
+                self.training_config.use_scaler = True
+            logger.info("Scaler: No default and ~fp16: Setting NoScaler.")
+
+        if self.training_config.use_zero is None:
+            self.training_config.use_zero = is_cuda
+
+        if self.training_config.optimizer is None:
+            self.training_config.optimizer = OptimizerType.AdamW
+            if is_cuda:
+                self.training_config.optimizer = OptimizerType.AdamW8bit
+            logger.info(
+                "Optimizer: No default. Setting %s",
+                self.training_config.optimizer,
+            )
