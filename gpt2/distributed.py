@@ -55,3 +55,7 @@ class DDPManager:
     def __exit__(self, exc_type, exc_value, exc_tb) -> None:
         if self.is_ddp_run:
             teardown_ddp()
+
+    @property
+    def is_main_process(self) -> bool:
+        return self.device_rank == 0

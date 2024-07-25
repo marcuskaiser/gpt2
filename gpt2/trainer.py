@@ -13,7 +13,7 @@ from torch.nn.parallel import DistributedDataParallel
 
 from gpt2.config import Config
 from gpt2.data_loader import SimpleDataLoader
-from gpt2.utils import DTYPE_MAP, get_optimizer
+from gpt2.utils import DTYPE_MAP, get_optimizer, OptimizerType
 
 
 logger = logging.getLogger(name=__name__)
@@ -67,14 +67,16 @@ class SimpleTrainer:
         config.resolve()
 
         self.model = model
-        assert isinstance(self.model, nn.Module)
+        assert isinstance(self.model, nn.Module), type(self.model)
         self._ddp = isinstance(model, DistributedDataParallel)
 
         self.data_loader = data_loader
-        assert isinstance(self.data_loader, SimpleDataLoader)
+        assert isinstance(self.data_loader, SimpleDataLoader), type(
+            self.data_loader
+        )
 
         self.lr = config.training_config.lr
-        assert self.lr > 0
+        assert self.lr > 0, self.lr
 
         self.num_accumulation_steps = (
             self.config.training_config.num_accumulation_steps
@@ -106,11 +108,16 @@ class SimpleTrainer:
         )
 
     def _reset_optimizer(self) -> None:
+        optimizer_name = self.config.training_config.optimizer
+        assert isinstance(optimizer_name, OptimizerType), optimizer_name
+        use_zero = self.config.training_config.use_zero
+        assert isinstance(use_zero, bool), use_zero
+
         self.optimizer = get_optimizer(
-            optimizer=self.config.training_config.optimizer,
+            optimizer=optimizer_name,
+            use_zero=use_zero,
             params=self.model.parameters(),
             lr=self.lr,
-            use_zero=self.config.training_config.use_zero,
         )
         # NB: Not all optimizer versions have the `fused` param:
         if self._is_cuda and hasattr(self.optimizer, "fused"):

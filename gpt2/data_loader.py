@@ -43,6 +43,7 @@ class SimpleDataLoader:
         assert self.eff_batch_size_per_device > 0
         self.eff_batch_size = self.eff_batch_size_per_device * world_size
         assert self.eff_batch_size > 0
+        logger.info("SimpleDataLoader.eff_batch_size=%d", self.eff_batch_size)
 
         self._offset = self.eff_batch_size_per_device * device_rank
         self._batch_counter = 0

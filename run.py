@@ -140,11 +140,6 @@ if __name__ == "__main__":
         logging.root.removeHandler(hdlr=hdlr)
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
-    logger.info(
-        "effective_batch_size=%d",
-        SEQ_LENGTH * NUM_ACCUMULATION_STEPS * BATCH_SIZE,
-    )
-
     # Torch config:
     torch.set_float32_matmul_precision(precision="high")
     torch.backends.cuda.enable_flash_sdp(enabled=True)
@@ -167,10 +162,12 @@ if __name__ == "__main__":
             _train(config=config, model=model, ddp_manager=ddp_manager)
             _eval(model=model, tokenizer=tokenizer, ddp_manager=ddp_manager)
 
-        save_model(model=model, filename="model.safetensors")
+        if ddp_manager.is_main_process:
+            save_model(model=model, filename="model.safetensors")
 
-        del model
-        model = GPT(config.gpt_config)
-        load_model(model=model, filename="model.safetensors")
+            del model
 
-        _eval(model=model, tokenizer=tokenizer, ddp_manager=ddp_manager)
+            model = GPT(config.gpt_config)
+            load_model(model=model, filename="model.safetensors")
+
+            _eval(model=model, tokenizer=tokenizer, ddp_manager=ddp_manager)
