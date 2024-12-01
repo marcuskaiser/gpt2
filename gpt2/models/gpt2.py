@@ -56,7 +56,7 @@ class CausalSelfAttention(nn.Module):
 
         return self.c_proj(
             F.scaled_dot_product_attention(  # pylint: disable=not-callable
-                query=q.view(view_shape).transpose(1, 2),
+                query=q.view(*view_shape).transpose(1, 2),
                 key=k.view(*view_shape).transpose(1, 2),
                 value=v.view(*view_shape).transpose(1, 2),
                 is_causal=True,
@@ -123,56 +123,56 @@ class GPT(nn.Module):
 
     def __init__(self, config: GPTConfig) -> None:
         super().__init__()
-        self.config = config
+        self.gpt_config = config
 
         self.transformer = nn.ModuleDict(
             modules={
                 "wte": nn.Embedding(
-                    num_embeddings=config.vocab_size,
-                    embedding_dim=config.n_embd,
-                    **self.config.get_model_kwargs(),
+                    num_embeddings=self.gpt_config.vocab_size,
+                    embedding_dim=self.gpt_config.n_embd,
+                    **self.gpt_config.get_model_kwargs(),
                 ),  # Token embedding layer
                 "wpe": nn.Embedding(
-                    num_embeddings=config.block_size,
-                    embedding_dim=config.n_embd,
-                    **self.config.get_model_kwargs(),
+                    num_embeddings=self.gpt_config.block_size,
+                    embedding_dim=self.gpt_config.n_embd,
+                    **self.gpt_config.get_model_kwargs(),
                 ),  # Positional embedding layer
                 "h": nn.ModuleList(
                     modules=[
-                        TransformerBlock(config=config)
-                        for _ in range(config.n_layer)
+                        TransformerBlock(config=self.gpt_config)
+                        for _ in range(self.gpt_config.n_layer)
                     ]
                 ),  # Transformer blocks
                 "ln_f": nn.LayerNorm(
-                    normalized_shape=config.n_embd,
-                    **self.config.get_model_kwargs(),
+                    normalized_shape=self.gpt_config.n_embd,
+                    **self.gpt_config.get_model_kwargs(),
                 ),  # Final layer norm
             }
         )
         self.lm_head = nn.Linear(
-            in_features=config.n_embd,
-            out_features=config.vocab_size,
+            in_features=self.gpt_config.n_embd,
+            out_features=self.gpt_config.vocab_size,
             bias=False,
-            **self.config.get_model_kwargs(),
+            **self.gpt_config.get_model_kwargs(),
         )
 
         # weight sharing: initial token
         #  embedding weight == final lm head weight:
         self.transformer.wte.weight = self.lm_head.weight
 
-        self.to(**self.config.get_model_kwargs())
+        self.to(**self.gpt_config.get_model_kwargs())
 
     def forward(
         self,
         x: torch.Tensor,
-        y: torch.Tensor | None = None,
+        labels: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         """
         Forward method returning both the logits and optionally the loss
-        if a target variable y is present.
+        if a target variable labels is present.
         """
         assert x.ndim == 2
-        assert x.shape[1] <= self.config.block_size
+        assert x.shape[1] <= self.gpt_config.block_size
 
         pos = torch.arange(
             start=0,
@@ -187,14 +187,10 @@ class GPT(nn.Module):
         logits = self.lm_head(self.transformer.ln_f(x))
 
         loss = None
-        if y is not None:
-
-            logits_this = logits.view(-1, logits.size(-1))
-            y_this = y.view(-1)
-
+        if labels is not None:
             loss = F.cross_entropy(
-                input=logits_this,
-                target=y_this,
+                input=logits.view(-1, logits.size(-1)),
+                target=labels.view(-1),
             )
 
         return logits, loss

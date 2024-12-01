@@ -72,6 +72,8 @@ def _load_model(
             module=model,
             device_ids=[ddp_manager.device_rank],
         )
+
+    if not hasattr(model, "config"):
         model.config = config.gpt_config
 
     if COMPILE_MODEL:

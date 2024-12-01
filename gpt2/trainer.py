@@ -7,7 +7,7 @@ import time
 
 import torch
 from torch import nn
-from torch.cuda.amp import GradScaler
+from torch.amp import GradScaler
 from torch.distributed import ReduceOp, all_reduce
 from torch.nn.parallel import DistributedDataParallel
 
@@ -17,35 +17,6 @@ from gpt2.utils import DTYPE_MAP, get_optimizer, OptimizerType
 
 
 logger = logging.getLogger(name=__name__)
-
-
-class NoScaler:
-    """Dummy class that is equivalent to no scaler being present."""
-
-    def scale(
-        self,
-        loss: torch.Tensor,
-    ) -> torch.Tensor:
-        """Dummy scale function. Simply returns the input."""
-        return loss
-
-    def unscale_(
-        self,
-        optimizer: torch.optim.Optimizer,
-    ) -> None:
-        """Dummy unscale_ function."""
-
-    def update(
-        self,
-    ) -> None:
-        """Dummy update function."""
-
-    def step(
-        self,
-        optimizer: torch.optim.Optimizer,
-    ) -> None:
-        """Dummy step function. Simply calls `optimizer.step()`."""
-        optimizer.step()
 
 
 class SimpleTrainer:
@@ -96,7 +67,7 @@ class SimpleTrainer:
                 self.config.gpt_config.autocast_dtype != "fp16"
             ), "Cannot use autocast_dtype=`fp16` with use_scaler=`False`!"
 
-        self._autocast_dtype = DTYPE_MAP[self.model.config.autocast_dtype]
+        self._autocast_dtype = DTYPE_MAP[self.model.gpt_config.autocast_dtype]
 
         self.optimizer: torch.optim.Optimizer
         self._reset_optimizer()
@@ -125,27 +96,49 @@ class SimpleTrainer:
 
         self.optimizer.zero_grad()
 
-    def _get_scaler(self) -> GradScaler | NoScaler:
-        if (
-            self.config.training_config.use_scaler
-            and self.config.gpt_config.device == "cuda"
-        ):
-            return GradScaler()
-        return NoScaler()
+    def _get_scaler(self) -> GradScaler:
+        # if (
+        #     self.config.training_config.use_scaler
+        #     # and self.config.gpt_config.device == "cuda"
+        # ):
+        return GradScaler(
+            device=self.config.gpt_config.device,
+            enabled=self.config.training_config.use_scaler,
+        )
 
     def _model_forward_loss(
         self,
         x: torch.Tensor,
         y: torch.Tensor,
     ) -> torch.Tensor:
+
         if self._is_mps:
-            _, loss = self.model(x, y)
+            out = self.model(x, labels=y)
+
         else:
             with torch.autocast(
-                device_type=self.model.config.device,
+                device_type=self.model.gpt_config.device,
                 dtype=self._autocast_dtype,
             ):
-                _, loss = self.model(x, y)
+                out = self.model(x, labels=y)
+
+        if hasattr(out, "loss"):
+            loss = out.loss
+        else:
+            _, loss = out
+
+        print(loss, loss.dtype)
+
+        if hasattr(out, "logits"):
+            logits = out.logits
+        else:
+            logits = out[0]
+
+        # TODO: [MK] Manually calculating the loss for checking
+        loss = nn.CrossEntropyLoss()(
+            logits[..., :-1, :].contiguous().view(-1, logits.size(-1)),
+            y[..., 1:].contiguous().view(-1).to(logits.device),
+        )
 
         return loss
 

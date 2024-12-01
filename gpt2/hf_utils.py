@@ -16,14 +16,17 @@ logger = logging.getLogger(__name__)
 
 
 def get_hf_tokenizer(
-    model_id: str = "openai-community/gpt2",
+    model_id: str | None = None,
 ) -> PreTrainedTokenizer:
     """Get GPT2-Tokenizer."""
+
+    if model_id is None:
+        model_id = "openai-community/gpt2"
+
     logger.info("Loading HF tokenizer: `%s`", model_id)
-    tokenizer = AutoTokenizer.from_pretrained(
+    return AutoTokenizer.from_pretrained(
         pretrained_model_name_or_path=model_id,
     )
-    return tokenizer
 
 
 def get_hf_model(
@@ -33,13 +36,11 @@ def get_hf_model(
 ) -> PreTrainedModel:
     """Get GPT2-Model."""
     logger.info("Loading HF model: `%s`", model_id)
-    model = GPT2LMHeadModel.from_pretrained(
+    return GPT2LMHeadModel.from_pretrained(
         pretrained_model_name_or_path=model_id,
         device_map=device_map,
         **kwargs,
     )
-
-    return model
 
 
 def tokenize_string_dataset(
